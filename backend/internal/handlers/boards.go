@@ -1,0 +1,339 @@
+package handlers
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/jaredlemler/life-trackin/internal/middleware"
+)
+
+type BoardHandler struct {
+	pool *pgxpool.Pool
+}
+
+func NewBoardHandler(pool *pgxpool.Pool) *BoardHandler {
+	return &BoardHandler{pool: pool}
+}
+
+type CreateBoardRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ColorScheme any    `json:"color_scheme,omitempty"`
+	Visibility  string `json:"visibility,omitempty"`
+}
+
+type UpdateBoardRequest struct {
+	Name        *string `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
+	ColorScheme any     `json:"color_scheme,omitempty"`
+	Visibility  *string `json:"visibility,omitempty"`
+	Position    *int    `json:"position,omitempty"`
+}
+
+func (h *BoardHandler) List(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := middleware.GetUserID(ctx)
+
+	rows, err := h.pool.Query(ctx,
+		`SELECT id, user_id, name, description, color_scheme, visibility, position, created_at, updated_at
+		 FROM boards WHERE user_id = $1 ORDER BY position ASC, created_at ASC`,
+		userID,
+	)
+	if err != nil {
+		http.Error(w, `{"error":"failed to fetch boards"}`, http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type Board struct {
+		ID          string    `json:"id"`
+		UserID      string    `json:"user_id"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		ColorScheme any       `json:"color_scheme"`
+		Visibility  string    `json:"visibility"`
+		Position    int       `json:"position"`
+		CreatedAt   time.Time `json:"created_at"`
+		UpdatedAt   time.Time `json:"updated_at"`
+	}
+
+	boards := []Board{}
+	for rows.Next() {
+		var b Board
+		var colorScheme []byte
+		if err := rows.Scan(&b.ID, &b.UserID, &b.Name, &b.Description, &colorScheme, &b.Visibility, &b.Position, &b.CreatedAt, &b.UpdatedAt); err != nil {
+			http.Error(w, `{"error":"failed to scan board"}`, http.StatusInternalServerError)
+			return
+		}
+		json.Unmarshal(colorScheme, &b.ColorScheme)
+		boards = append(boards, b)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(boards)
+}
+
+func (h *BoardHandler) Create(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := middleware.GetUserID(ctx)
+
+	var req CreateBoardRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.Name == "" {
+		http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	if req.Visibility == "" {
+		req.Visibility = "private"
+	}
+
+	colorScheme := `{"empty": "#ebedf0", "levels": ["#9be9a8", "#40c463", "#30a14e", "#216e39"]}`
+	if req.ColorScheme != nil {
+		cs, _ := json.Marshal(req.ColorScheme)
+		colorScheme = string(cs)
+	}
+
+	var boardID string
+	err := h.pool.QueryRow(ctx,
+		`INSERT INTO boards (user_id, name, description, color_scheme, visibility)
+		 VALUES ($1, $2, $3, $4::jsonb, $5) RETURNING id`,
+		userID, req.Name, req.Description, colorScheme, req.Visibility,
+	).Scan(&boardID)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to create board: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"id": boardID})
+}
+
+func (h *BoardHandler) Get(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := middleware.GetUserID(ctx)
+	boardID := chi.URLParam(r, "boardID")
+
+	var b struct {
+		ID          string    `json:"id"`
+		UserID      string    `json:"user_id"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		ColorScheme any       `json:"color_scheme"`
+		Visibility  string    `json:"visibility"`
+		Position    int       `json:"position"`
+		CreatedAt   time.Time `json:"created_at"`
+		UpdatedAt   time.Time `json:"updated_at"`
+	}
+
+	var colorScheme []byte
+	err := h.pool.QueryRow(ctx,
+		`SELECT id, user_id, name, description, color_scheme, visibility, position, created_at, updated_at
+		 FROM boards WHERE id = $1 AND user_id = $2`,
+		boardID, userID,
+	).Scan(&b.ID, &b.UserID, &b.Name, &b.Description, &colorScheme, &b.Visibility, &b.Position, &b.CreatedAt, &b.UpdatedAt)
+
+	if err != nil {
+		http.Error(w, `{"error":"board not found"}`, http.StatusNotFound)
+		return
+	}
+	json.Unmarshal(colorScheme, &b.ColorScheme)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(b)
+}
+
+func (h *BoardHandler) Update(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := middleware.GetUserID(ctx)
+	boardID := chi.URLParam(r, "boardID")
+
+	var req UpdateBoardRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Build dynamic update
+	query := "UPDATE boards SET updated_at = NOW()"
+	args := []any{}
+	argIdx := 1
+
+	if req.Name != nil {
+		query += fmt.Sprintf(", name = $%d", argIdx)
+		args = append(args, *req.Name)
+		argIdx++
+	}
+	if req.Description != nil {
+		query += fmt.Sprintf(", description = $%d", argIdx)
+		args = append(args, *req.Description)
+		argIdx++
+	}
+	if req.ColorScheme != nil {
+		cs, _ := json.Marshal(req.ColorScheme)
+		query += fmt.Sprintf(", color_scheme = $%d::jsonb", argIdx)
+		args = append(args, string(cs))
+		argIdx++
+	}
+	if req.Visibility != nil {
+		query += fmt.Sprintf(", visibility = $%d", argIdx)
+		args = append(args, *req.Visibility)
+		argIdx++
+	}
+	if req.Position != nil {
+		query += fmt.Sprintf(", position = $%d", argIdx)
+		args = append(args, *req.Position)
+		argIdx++
+	}
+
+	query += fmt.Sprintf(" WHERE id = $%d AND user_id = $%d", argIdx, argIdx+1)
+	args = append(args, boardID, userID)
+
+	_, err := h.pool.Exec(ctx, query, args...)
+	if err != nil {
+		http.Error(w, `{"error":"failed to update board"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, `{"status":"updated"}`)
+}
+
+func (h *BoardHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := middleware.GetUserID(ctx)
+	boardID := chi.URLParam(r, "boardID")
+
+	_, err := h.pool.Exec(ctx,
+		`DELETE FROM boards WHERE id = $1 AND user_id = $2`,
+		boardID, userID,
+	)
+	if err != nil {
+		http.Error(w, `{"error":"failed to delete board"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, `{"status":"deleted"}`)
+}
+
+func (h *BoardHandler) Heatmap(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := middleware.GetUserID(ctx)
+	boardID := chi.URLParam(r, "boardID")
+
+	yearStr := r.URL.Query().Get("year")
+	year := time.Now().Year()
+	if yearStr != "" {
+		if y, err := strconv.Atoi(yearStr); err == nil {
+			year = y
+		}
+	}
+
+	// Verify board ownership
+	var ownerID string
+	err := h.pool.QueryRow(ctx, `SELECT user_id FROM boards WHERE id = $1`, boardID).Scan(&ownerID)
+	if err != nil || ownerID != userID {
+		http.Error(w, `{"error":"board not found"}`, http.StatusNotFound)
+		return
+	}
+
+	// Get all entries for habits in this board for the given year
+	startDate := fmt.Sprintf("%d-01-01", year)
+	endDate := fmt.Sprintf("%d-12-31", year)
+
+	rows, err := h.pool.Query(ctx,
+		`SELECT e.date, 
+		        CASE 
+		            WHEN h.type = 'binary' THEN CASE WHEN e.value_bool THEN 1.0 ELSE 0.0 END
+		            WHEN h.type = 'quantitative' THEN COALESCE(e.value_numeric / NULLIF(h.target_value, 0), 0)
+		            WHEN h.type = 'timed' THEN COALESCE(EXTRACT(EPOCH FROM e.value_duration) / NULLIF(EXTRACT(EPOCH FROM (h.target_value || ' minutes')::interval), 0), 0)
+		            ELSE 0
+		        END as completion_ratio
+		 FROM entries e
+		 JOIN habits h ON h.id = e.habit_id
+		 WHERE h.board_id = $1 AND e.date BETWEEN $2 AND $3
+		 ORDER BY e.date`,
+		boardID, startDate, endDate,
+	)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to fetch heatmap data: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// Aggregate by date
+	dayMap := make(map[string]float64)
+	dayCount := make(map[string]int)
+	for rows.Next() {
+		var date time.Time
+		var ratio float64
+		if err := rows.Scan(&date, &ratio); err != nil {
+			continue
+		}
+		d := date.Format("2006-01-02")
+		dayMap[d] += ratio
+		dayCount[d]++
+	}
+
+	// Build response
+	type HeatmapDay struct {
+		Date  string  `json:"date"`
+		Value float64 `json:"value"`
+		Level int     `json:"level"`
+	}
+
+	days := []HeatmapDay{}
+	activeDays := 0
+	start := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(year, 12, 31, 0, 0, 0, 0, time.UTC)
+
+	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
+		dateStr := d.Format("2006-01-02")
+		avg := 0.0
+		if count, ok := dayCount[dateStr]; ok && count > 0 {
+			avg = dayMap[dateStr] / float64(count)
+			activeDays++
+		}
+
+		level := 0
+		if avg > 0 && avg <= 0.25 {
+			level = 1
+		} else if avg > 0.25 && avg <= 0.5 {
+			level = 2
+		} else if avg > 0.5 && avg <= 0.75 {
+			level = 3
+		} else if avg > 0.75 {
+			level = 4
+		}
+
+		days = append(days, HeatmapDay{
+			Date:  dateStr,
+			Value: avg,
+			Level: level,
+		})
+	}
+
+	resp := map[string]any{
+		"year":        year,
+		"board_id":    boardID,
+		"days":        days,
+		"total_days":  len(days),
+		"active_days": activeDays,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}

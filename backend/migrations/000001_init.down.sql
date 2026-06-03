@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS follows;
+DROP TABLE IF EXISTS streaks;
+DROP TABLE IF EXISTS entries;
+DROP TABLE IF EXISTS habits;
+DROP TYPE IF EXISTS habit_type;
+DROP TABLE IF EXISTS boards;
+DROP TABLE IF EXISTS oauth_sessions;
+DROP TABLE IF EXISTS oauth_auth_requests;
+DROP TABLE IF EXISTS users;
