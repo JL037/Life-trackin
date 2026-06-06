@@ -25,6 +25,7 @@ async function fetcher(path: string, options?: RequestInit) {
 export const api = {
   auth: {
     me: () => fetcher('/auth/me'),
+    updateProfile: (data: unknown) => fetcher('/auth/me', { method: 'PUT', body: JSON.stringify(data) }),
     login: (handle: string) => {
       window.location.href = `/api/auth/login?handle=${encodeURIComponent(handle)}`
     },

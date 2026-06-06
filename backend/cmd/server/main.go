@@ -101,6 +101,7 @@ func main() {
 		r.Get("/login", authHandler.Login)
 		r.Get("/callback", authHandler.Callback)
 		r.Get("/me", middleware.RequireAuth(jwtSecret)(authHandler.Me))
+		r.Put("/me", middleware.RequireAuth(jwtSecret)(authHandler.UpdateProfile))
 		r.Post("/logout", authHandler.Logout)
 	})
 

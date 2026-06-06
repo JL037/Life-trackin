@@ -99,7 +99,7 @@ export function BoardView() {
       ) : (
         <div className="space-y-2">
           {habits.map(habit => (
-            <HabitCard key={habit.id} habit={habit} />
+            <HabitCard key={habit.id} habit={habit} onDeleted={(id) => setHabits(prev => prev.filter(h => h.id !== id))} />
           ))}
         </div>
       )}

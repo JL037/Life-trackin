@@ -5,7 +5,8 @@ import type { Habit, Entry, StreakInfo } from '../types'
 import { Heatmap } from '../components/Heatmap'
 import { StreakBadge } from '../components/StreakBadge'
 import { EntryForm } from '../components/EntryForm'
-import { ArrowLeft, Target, TrendingUp } from 'lucide-react'
+import { ConfirmModal } from '../components/ConfirmModal'
+import { ArrowLeft, Target, TrendingUp, Trash2 } from 'lucide-react'
 
 export function HabitView() {
   const { habitId } = useParams<{ habitId: string }>()
@@ -14,6 +15,7 @@ export function HabitView() {
   const [streak, setStreak] = useState<StreakInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [showEntryForm, setShowEntryForm] = useState(false)
+  const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
 
   useEffect(() => {
     if (!habitId) return
@@ -42,6 +44,14 @@ export function HabitView() {
         <div className="text-text-muted text-sm animate-pulse">&gt; loading habit data...</div>
       </div>
     )
+  }
+
+  const handleDeleteEntry = async () => {
+    if (!entryToDelete) return
+    await api.entries.delete(entryToDelete.id)
+    setEntries(prev => prev.filter(e => e.id !== entryToDelete.id))
+    setEntryToDelete(null)
+    loadData()
   }
 
   if (!habit) {
@@ -136,7 +146,7 @@ export function HabitView() {
           {entries.slice(0, 20).map(entry => (
             <div
               key={entry.id}
-              className="flex items-center justify-between border border-border bg-surface px-3 py-2"
+              className="flex items-center justify-between border border-border bg-surface px-3 py-2 group"
             >
               <div className="flex items-center gap-3">
                 <div
@@ -152,17 +162,36 @@ export function HabitView() {
                   {entry.notes && <p className="text-xs text-text-muted">// {entry.notes}</p>}
                 </div>
               </div>
-              <div className="text-right">
-                {entry.value_numeric !== undefined && (
-                  <p className="text-sm font-medium text-primary">{entry.value_numeric}{habit.unit}</p>
-                )}
-                {entry.value_duration && (
-                  <p className="text-sm font-medium text-primary">{entry.value_duration}</p>
-                )}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  {entry.value_numeric !== undefined && (
+                    <p className="text-sm font-medium text-primary">{entry.value_numeric}{habit.unit}</p>
+                  )}
+                  {entry.value_duration && (
+                    <p className="text-sm font-medium text-primary">{entry.value_duration}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setEntryToDelete(entry)}
+                  className="p-1 border border-border hover:border-red-500 hover:text-red-500 text-text-muted transition-colors opacity-0 group-hover:opacity-100"
+                  title="Delete entry"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {entryToDelete && (
+        <ConfirmModal
+          title="DELETE_ENTRY"
+          message={`Remove entry for ${new Date(entryToDelete.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}?`}
+          confirmLabel="DELETE"
+          onConfirm={handleDeleteEntry}
+          onClose={() => setEntryToDelete(null)}
+        />
       )}
 
       {showEntryForm && habit && (

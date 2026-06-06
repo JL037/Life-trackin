@@ -5,6 +5,7 @@ import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { BoardView } from './pages/BoardView'
 import { HabitView } from './pages/HabitView'
+import { Profile } from './pages/Profile'
 
 function App() {
   const { user, loading } = useAuth()
@@ -34,6 +35,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/board/:boardId" element={<BoardView />} />
           <Route path="/habit/:habitId" element={<HabitView />} />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </Layout>
     </BrowserRouter>

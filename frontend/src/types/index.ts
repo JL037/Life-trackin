@@ -4,6 +4,8 @@ export interface User {
   handle: string
   display_name: string
   avatar_url: string
+  bio: string
+  goals: string
   privacy_default: string
   created_at: string
 }

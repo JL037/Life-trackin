@@ -64,7 +64,7 @@ export function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {boards.map(board => (
-            <BoardCard key={board.id} board={board} />
+            <BoardCard key={board.id} board={board} onDeleted={(id) => setBoards(prev => prev.filter(b => b.id !== id))} />
           ))}
         </div>
       )}

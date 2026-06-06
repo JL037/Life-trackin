@@ -19,10 +19,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           {user && (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-2 py-1 border border-border bg-bg">
+              <Link
+                to="/profile"
+                className="flex items-center gap-2 px-2 py-1 border border-border bg-bg hover:border-primary transition-colors"
+              >
                 <User className="w-4 h-4 text-primary" />
                 <span className="text-sm text-primary">@{user.handle}</span>
-              </div>
+              </Link>
               <button
                 onClick={() => { logout(); navigate('/login') }}
                 className="p-2 border border-border hover:border-primary hover:text-primary transition-colors"

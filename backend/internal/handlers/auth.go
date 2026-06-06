@@ -165,15 +165,17 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		Handle         string    `json:"handle"`
 		DisplayName    string    `json:"display_name"`
 		AvatarURL      string    `json:"avatar_url"`
+		Bio            string    `json:"bio"`
+		Goals          string    `json:"goals"`
 		PrivacyDefault string    `json:"privacy_default"`
 		CreatedAt      time.Time `json:"created_at"`
 	}
 
 	err := h.pool.QueryRow(ctx,
-		`SELECT id, did, handle, display_name, avatar_url, privacy_default, created_at
+		`SELECT id, did, handle, display_name, avatar_url, bio, goals, privacy_default, created_at
 		 FROM users WHERE id = $1`,
 		userID,
-	).Scan(&user.ID, &user.DID, &user.Handle, &user.DisplayName, &user.AvatarURL, &user.PrivacyDefault, &user.CreatedAt)
+	).Scan(&user.ID, &user.DID, &user.Handle, &user.DisplayName, &user.AvatarURL, &user.Bio, &user.Goals, &user.PrivacyDefault, &user.CreatedAt)
 
 	if err != nil {
 		http.Error(w, `{"error":"user not found"}`, http.StatusNotFound)
@@ -182,6 +184,66 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(user)
+}
+
+// UpdateProfile updates the current user's profile fields.
+func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	userID := middleware.GetUserID(ctx)
+	if userID == "" {
+		http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		DisplayName    *string `json:"display_name,omitempty"`
+		Bio            *string `json:"bio,omitempty"`
+		Goals          *string `json:"goals,omitempty"`
+		PrivacyDefault *string `json:"privacy_default,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Build dynamic update
+	query := "UPDATE users SET updated_at = NOW()"
+	args := []any{}
+	argIdx := 1
+
+	if req.DisplayName != nil {
+		query += fmt.Sprintf(", display_name = $%d", argIdx)
+		args = append(args, *req.DisplayName)
+		argIdx++
+	}
+	if req.Bio != nil {
+		query += fmt.Sprintf(", bio = $%d", argIdx)
+		args = append(args, *req.Bio)
+		argIdx++
+	}
+	if req.Goals != nil {
+		query += fmt.Sprintf(", goals = $%d", argIdx)
+		args = append(args, *req.Goals)
+		argIdx++
+	}
+	if req.PrivacyDefault != nil {
+		query += fmt.Sprintf(", privacy_default = $%d", argIdx)
+		args = append(args, *req.PrivacyDefault)
+		argIdx++
+	}
+
+	query += fmt.Sprintf(" WHERE id = $%d", argIdx)
+	args = append(args, userID)
+
+	if _, err := h.pool.Exec(ctx, query, args...); err != nil {
+		http.Error(w, `{"error":"failed to update profile"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, `{"status":"updated"}`)
 }
 
 // Logout clears the session.
