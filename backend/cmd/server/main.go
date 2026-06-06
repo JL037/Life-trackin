@@ -36,12 +36,12 @@ func main() {
 
 	appURL := os.Getenv("APP_URL")
 	if appURL == "" {
-		appURL = "http://localhost:8080"
+		appURL = "http://127.0.0.1:8080"
 	}
 
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
-		frontendURL = "http://localhost:5173"
+		frontendURL = "http://127.0.0.1:5173"
 	}
 
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -64,14 +64,11 @@ func main() {
 	}
 	log.Println("Migrations completed successfully")
 
-	// Initialize OAuth
-	oauthClient, err := auth.NewOAuthClient(ctx, appURL, pool)
-	if err != nil {
-		log.Fatalf("Failed to initialize OAuth client: %v", err)
-	}
+	// Initialize OAuth (Indigo SDK ClientApp with PostgreSQL store)
+	oauthApp := auth.NewOAuthApp(appURL, pool)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(oauthClient, pool, jwtSecret, frontendURL)
+	authHandler := handlers.NewAuthHandler(oauthApp, pool, jwtSecret, frontendURL)
 	boardHandler := handlers.NewBoardHandler(pool)
 	habitHandler := handlers.NewHabitHandler(pool)
 	entryHandler := handlers.NewEntryHandler(pool)

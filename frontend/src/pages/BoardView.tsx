@@ -31,69 +31,73 @@ export function BoardView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary border-t-transparent" />
+      <div className="flex items-center justify-center h-64 font-mono">
+        <div className="text-text-muted text-sm animate-pulse">&gt; loading board data...</div>
       </div>
     )
   }
 
   if (!board) {
     return (
-      <div className="text-center py-16">
-        <h2 className="text-xl font-medium text-text dark:text-text-dark mb-2">Board not found</h2>
-        <Link to="/dashboard" className="text-primary hover:underline">Back to dashboard</Link>
+      <div className="text-center py-16 font-mono">
+        <h2 className="text-xl font-bold text-red mb-2">[ERROR: BOARD NOT FOUND]</h2>
+        <Link to="/dashboard" className="text-primary hover:text-primary-dim border-b border-primary">
+          &lt;&lt; RETURN TO DASHBOARD
+        </Link>
       </div>
     )
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <Link to="/dashboard" className="text-sm text-text-muted hover:text-primary flex items-center gap-1 mb-2">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
+    <div className="font-mono">
+      <div className="mb-6 border-b border-border pb-3">
+        <Link to="/dashboard" className="text-xs text-text-muted hover:text-primary flex items-center gap-1 mb-2">
+          <ArrowLeft className="w-3 h-3" />
+          &lt;&lt; DASHBOARD
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-text dark:text-text-dark">{board.name}</h1>
+            <h1 className="text-xl font-bold text-primary">[{board.name}]</h1>
             {board.description && (
-              <p className="text-text-muted mt-1">{board.description}</p>
+              <p className="text-text-muted text-xs mt-1">// {board.description}</p>
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg border border-border dark:border-border-dark hover:bg-surface dark:hover:bg-surface-dark transition-colors">
-              <Settings className="w-4 h-4 text-text-muted" />
+            <button className="p-2 border border-border hover:border-primary transition-colors">
+              <Settings className="w-4 h-4 text-primary" />
             </button>
             <button
               onClick={() => setShowCreateHabit(true)}
-              className="flex items-center gap-2 bg-primary hover:bg-primary-light text-white font-medium py-2 px-4 rounded-lg transition-colors"
+              className="flex items-center gap-2 border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-1.5 px-3 transition-colors text-sm"
             >
               <Plus className="w-4 h-4" />
-              Add Habit
+              NEW_HABIT
             </button>
           </div>
         </div>
       </div>
 
-      <div className="bg-surface dark:bg-surface-dark rounded-xl border border-border dark:border-border-dark p-4 mb-6">
-        <h2 className="text-sm font-medium text-text-muted mb-3">Year Overview</h2>
+      <div className="border border-border bg-surface p-4 mb-6">
+        <div className="text-xs text-text-muted mb-3 border-b border-border pb-2">
+          &gt; YEAR OVERVIEW
+        </div>
         <Heatmap boardId={board.id} year={new Date().getFullYear()} />
       </div>
 
-      <h2 className="text-lg font-semibold text-text dark:text-text-dark mb-4">Habits</h2>
+      <h2 className="text-lg font-bold text-primary mb-4">[HABITS]</h2>
 
       {habits.length === 0 ? (
-        <div className="text-center py-12 bg-surface dark:bg-surface-dark rounded-xl border border-dashed border-border dark:border-border-dark">
-          <p className="text-text-muted mb-3">No habits in this board yet</p>
+        <div className="text-center py-12 border border-dashed border-border bg-surface">
+          <p className="text-text-muted mb-3 text-sm">[NO HABITS INITIALIZED]</p>
           <button
             onClick={() => setShowCreateHabit(true)}
-            className="bg-primary hover:bg-primary-light text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            className="border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-2 px-4 transition-colors text-sm"
           >
-            Add Your First Habit
+            INIT_HABIT
           </button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {habits.map(habit => (
             <HabitCard key={habit.id} habit={habit} />
           ))}

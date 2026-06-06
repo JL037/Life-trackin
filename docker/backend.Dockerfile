@@ -13,6 +13,10 @@ WORKDIR /app
 COPY backend/go.mod ./
 RUN go mod download || true
 
+# Patch Indigo SDK: PushedAuthRequest omits empty client_assertion for public clients
+COPY docker/patch-indigo.sh /tmp/patch-indigo.sh
+RUN chmod +x /tmp/patch-indigo.sh && /tmp/patch-indigo.sh
+
 COPY backend/ .
 RUN go mod tidy
 

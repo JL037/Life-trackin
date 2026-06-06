@@ -21,7 +21,7 @@ export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), com
   }, [boardId, habitId, year])
 
   if (loading) {
-    return <div className="animate-pulse bg-gray-200 dark:bg-gray-800 rounded-lg h-20" />
+    return <div className="animate-pulse bg-text-dim border border-border h-20" />
   }
 
   if (!data || data.days.length === 0) {
@@ -120,18 +120,18 @@ export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), com
         </div>
       </div>
 
-      <div className="flex items-center justify-between mt-3 text-xs text-text-muted">
-        <span>{data.active_days} active days</span>
+      <div className="flex items-center justify-between mt-3 text-xs text-text-muted font-mono">
+        <span>{data.active_days} active_days</span>
         <div className="flex items-center gap-1.5">
-          <span>Less</span>
+          <span>min</span>
           {[0, 1, 2, 3, 4].map(level => (
             <div
               key={level}
-              className="w-3 h-3 rounded-sm"
+              className="w-3 h-3"
               style={{ backgroundColor: getHeatmapColor(level) }}
             />
           ))}
-          <span>More</span>
+          <span>max</span>
         </div>
       </div>
     </div>

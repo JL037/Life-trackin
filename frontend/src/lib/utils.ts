@@ -26,7 +26,7 @@ export function getHeatmapLevel(value: number): number {
 }
 
 export function getHeatmapColor(level: number): string {
-  const colors = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39']
+  const colors = ['#0a1a0a', '#1a4a1a', '#2a8a2a', '#4aca4a', '#7aff7a']
   return colors[level] || colors[0]
 }
 

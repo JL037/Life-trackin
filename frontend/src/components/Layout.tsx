@@ -1,36 +1,34 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { LayoutDashboard, LogOut, User } from 'lucide-react'
+import { LogOut, User } from 'lucide-react'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-border dark:border-border-dark bg-surface dark:bg-surface-dark">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col font-mono">
+      <header className="border-b border-border bg-surface">
+        <div className="max-w-6xl mx-auto px-4 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-                <LayoutDashboard className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-semibold text-lg text-text dark:text-text-dark">LifeTrack</span>
+            <Link to="/dashboard" className="flex items-center gap-2 text-primary hover:text-primary-dim transition-colors">
+              <span className="text-primary font-bold">&gt;_</span>
+              <span className="font-bold text-lg tracking-wider">LIFETRACK</span>
             </Link>
           </div>
 
           {user && (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface dark:bg-surface-dark border border-border dark:border-border-dark">
-                <User className="w-4 h-4 text-text-muted" />
-                <span className="text-sm font-medium text-text dark:text-text-dark">@{user.handle}</span>
+              <div className="flex items-center gap-2 px-2 py-1 border border-border bg-bg">
+                <User className="w-4 h-4 text-primary" />
+                <span className="text-sm text-primary">@{user.handle}</span>
               </div>
               <button
                 onClick={() => { logout(); navigate('/login') }}
-                className="p-2 rounded-lg hover:bg-surface dark:hover:bg-surface-dark transition-colors"
+                className="p-2 border border-border hover:border-primary hover:text-primary transition-colors"
                 title="Logout"
               >
-                <LogOut className="w-4 h-4 text-text-muted" />
+                <LogOut className="w-4 h-4 text-primary" />
               </button>
             </div>
           )}
@@ -41,8 +39,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <footer className="border-t border-border dark:border-border-dark py-4 text-center text-sm text-text-muted">
-        LifeTrack - Powered by AT Protocol
+      <footer className="border-t border-border py-2 text-center text-xs text-text-muted font-mono">
+        [LIFETRACK v1.0] // AT PROTOCOL // PDS CONNECTED
       </footer>
     </div>
   )

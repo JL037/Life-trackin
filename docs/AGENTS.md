@@ -203,8 +203,8 @@ Life-trackin/
 ```
 DATABASE_URL=postgres://lifetrack:lifetrack_dev@localhost:5432/lifetrack?sslmode=disable
 PORT=8080
-APP_URL=http://localhost:8080
-FRONTEND_URL=http://localhost:5173
+APP_URL=http://127.0.0.1:8080
+FRONTEND_URL=http://127.0.0.1:5173
 JWT_SECRET=dev-secret-change-in-production
 ```
 
@@ -261,7 +261,7 @@ docker-compose up -d db backend
 ```bash
 cd frontend
 npm install
-npm run dev   # http://localhost:5173
+npm run dev   # http://127.0.0.1:5173
 ```
 
 ### Database

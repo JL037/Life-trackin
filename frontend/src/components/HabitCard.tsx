@@ -22,30 +22,30 @@ export function HabitCard({ habit }: Props) {
   return (
     <Link
       to={`/habit/${habit.id}`}
-      className="flex items-center justify-between bg-surface dark:bg-surface-dark rounded-xl border border-border dark:border-border-dark p-4 hover:shadow-md hover:border-primary/30 transition-all group"
+      className="flex items-center justify-between border border-border bg-surface p-3 hover:border-primary/50 transition-colors group"
     >
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+        <div className="w-8 h-8 border border-primary/30 bg-bg flex items-center justify-center text-primary">
           {typeIcon}
         </div>
         <div>
-          <h3 className="font-medium text-text dark:text-text-dark group-hover:text-primary transition-colors">
-            {habit.name}
+          <h3 className="font-bold text-primary group-hover:text-primary-dim transition-colors text-sm">
+            [{habit.name}]
           </h3>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-xs text-text-muted bg-bg dark:bg-bg-dark px-1.5 py-0.5 rounded border border-border dark:border-border-dark">
+            <span className="text-xs text-text-muted border border-border bg-bg px-1 py-0.5">
               {typeLabel}
             </span>
             {habit.target_value > 1 && (
               <span className="text-xs text-text-muted">
-                Target: {habit.target_value} {habit.unit}
+                target: {habit.target_value}{habit.unit}
               </span>
             )}
           </div>
         </div>
       </div>
 
-      <ArrowRight className="w-5 h-5 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
+      <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
     </Link>
   )
 }

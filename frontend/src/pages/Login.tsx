@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { Activity, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 export function Login() {
   const [handle, setHandle] = useState('')
@@ -14,53 +14,59 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-bg font-mono">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <Activity className="w-8 h-8 text-white" />
+        <div className="text-center mb-6">
+          <div className="text-primary font-mono text-xs mb-2 opacity-60">
+            SYSTEM BOOT SEQUENCE...
           </div>
-          <h1 className="text-3xl font-bold text-text dark:text-text-dark mb-2">LifeTrack</h1>
-          <p className="text-text-muted">
-            GitHub-style life tracking powered by AT Protocol
-          </p>
+          <div className="border border-primary/30 bg-surface p-4">
+            <pre className="text-primary text-xs leading-4 mb-2">
+{`  _    _ _   _______ _      _____
+ | |  | (_) |__   __(_)    |_   _|
+ | |__| |_     | |   _ _ __   | |
+ |  __  | |    | |  | | '_ \  | |
+ | |  | | |    | |  | | | | |_| |_
+ |_|  |_|_|    |_|  |_|_| |_|_____|
+`}
+            </pre>
+            <p className="text-text-muted text-xs tracking-widest">
+              AT PROTOCOL LIFE TRACKING SYSTEM
+            </p>
+          </div>
         </div>
 
-        <div className="bg-surface dark:bg-surface-dark rounded-2xl border border-border dark:border-border-dark p-6 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="border border-border bg-surface p-4">
+          <div className="text-xs text-text-muted mb-3 border-b border-border pb-2">
+            &gt; AUTHENTICATION REQUIRED
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-text dark:text-text-dark mb-1.5">
-                Your AT Protocol Handle
+              <label className="block text-xs text-primary mb-1.5">
+                AT PROTOCOL HANDLE:
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  placeholder="handle.bsky.social"
-                  className="w-full px-4 py-2.5 rounded-lg border border-border dark:border-border-dark bg-bg dark:bg-bg-dark text-text dark:text-text-dark placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
-                  autoFocus
-                />
-              </div>
-              <p className="text-xs text-text-muted mt-1.5">
-                Enter your Bluesky handle to sign in with AT Protocol
-              </p>
+              <input
+                type="text"
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                placeholder="handle.bsky.social"
+                className="w-full px-3 py-2 border border-border bg-bg text-primary placeholder:text-text-dim focus:outline-none focus:border-primary transition-colors font-mono"
+                autoFocus
+              />
             </div>
 
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-light text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
+              className="w-full flex items-center justify-center gap-2 border border-primary bg-primary/10 hover:bg-primary/20 text-primary font-mono py-2 px-4 transition-colors"
             >
-              Sign In with AT Protocol
+              <span>CONNECT_VIA_ATPROTO</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-border dark:border-border-dark">
-            <div className="flex items-center gap-2 text-xs text-text-muted">
-              <Activity className="w-3.5 h-3.5" />
-              <span>Your data is stored on your personal data server (PDS)</span>
-            </div>
+          <div className="mt-4 pt-3 border-t border-border text-xs text-text-muted">
+            <span className="text-primary">&gt;</span> DATA STORED ON PERSONAL DATA SERVER (PDS)
           </div>
         </div>
       </div>

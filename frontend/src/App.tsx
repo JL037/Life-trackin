@@ -11,8 +11,13 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <div className="text-center">
+          <div className="text-primary font-mono text-sm mb-2">
+            <span className="text-primary">&gt;_</span> booting lifetrack...
+          </div>
+          <div className="w-64 h-px bg-border animate-pulse" />
+        </div>
       </div>
     )
   }

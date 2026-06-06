@@ -1,34 +1,106 @@
 @import "tailwindcss";
 
 @theme {
-  --color-heatmap-0: #ebedf0;
-  --color-heatmap-1: #9be9a8;
-  --color-heatmap-2: #40c463;
-  --color-heatmap-3: #30a14e;
-  --color-heatmap-4: #216e39;
-  --color-primary: #216e39;
-  --color-primary-light: #30a14e;
-  --color-bg: #ffffff;
-  --color-bg-dark: #0d1117;
-  --color-surface: #f6f8fa;
-  --color-surface-dark: #161b22;
-  --color-border: #d0d7de;
-  --color-border-dark: #30363d;
-  --color-text: #24292f;
-  --color-text-dark: #c9d1d9;
-  --color-text-muted: #656d76;
+  /* Terminal green phosphor heatmap */
+  --color-heatmap-0: #0a1a0a;
+  --color-heatmap-1: #1a4a1a;
+  --color-heatmap-2: #2a8a2a;
+  --color-heatmap-3: #4aca4a;
+  --color-heatmap-4: #7aff7a;
+
+  /* Terminal palette */
+  --color-primary: #33ff33;
+  --color-primary-dim: #1a991a;
+  --color-bg: #0a0a0a;
+  --color-bg-dark: #0a0a0a;
+  --color-surface: #111111;
+  --color-surface-dark: #111111;
+  --color-border: #33ff3340;
+  --color-border-dark: #33ff3340;
+  --color-text: #33ff33;
+  --color-text-dark: #33ff33;
+  --color-text-muted: #1a991a;
+  --color-text-dim: #0d550d;
+  --color-amber: #ffb000;
+  --color-amber-dim: #996600;
+  --color-red: #ff3333;
+  --color-red-dim: #991a1a;
 }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  -webkit-font-smoothing: antialiased;
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+  background-color: #0a0a0a;
+  color: #33ff33;
+  -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: grayscale;
+  text-shadow: 0 0 2px #33ff3360, 0 0 8px #33ff3320;
 }
 
-@media (prefers-color-scheme: dark) {
-  body {
-    background-color: #0d1117;
-    color: #c9d1d9;
-  }
+/* CRT scanline overlay */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+}
+
+/* Terminal blink cursor animation */
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Terminal glow pulse */
+@keyframes glow {
+  0%, 100% { text-shadow: 0 0 2px #33ff3360, 0 0 8px #33ff3320; }
+  50% { text-shadow: 0 0 4px #33ff3380, 0 0 12px #33ff3340; }
+}
+
+/* Selection style */
+::selection {
+  background-color: #33ff3340;
+  color: #ffffff;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a991a;
+  border: 1px solid #0a0a0a;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #33ff33;
+}
+
+/* Input placeholders */
+::placeholder {
+  color: #0d550d;
+}
+
+/* Focus ring - terminal style */
+:focus-visible {
+  outline: 1px solid #33ff33;
+  outline-offset: 2px;
+}
+
+/* No rounded corners anywhere */
+*, *::before, *::after {
+  border-radius: 0 !important;
 }

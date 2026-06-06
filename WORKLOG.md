@@ -91,14 +91,59 @@
 
 ---
 
+## Session: June 3, 2026 (PM) — OAuth Confidential Client Migration
+
+### Problem
+Real Bluesky OAuth login returned **HTTP 500** with:
+```
+PAR request failed (HTTP 400): invalid_request
+```
+
+### Root Cause
+**Indigo SDK bug**: `PushedAuthRequest` (PAR step) uses plain `string` fields for `client_assertion` and `client_assertion_type`, while `InitialTokenRequest` (token exchange) correctly uses `*string` with `omitempty`. For public clients (`NewLocalhostConfig`), empty strings get encoded as:
+```
+client_assertion=&client_assertion_type=
+```
+Bluesky's auth server rejects this as `invalid_request`.
+
+Additionally, Bluesky enforces RFC 8252: `redirect_uri` must use `127.0.0.1`, not `localhost`.
+
+### Solution
+1. **Patch the Indigo SDK** (`docker/patch-indigo.sh`):
+   - `types.go`: `string` → `*string` with `omitempty` for `client_assertion_type` and `client_assertion`
+   - `oauth.go`: assign pointers (`&ClientAssertionJWTBearer`, `&assertionJWT`)
+   - Dockerfile runs the patch after `go mod download`
+
+2. **Revert to `NewLocalhostConfig`** (public client, virtual metadata — no public URL needed)
+
+3. **Switch `localhost` → `127.0.0.1`** everywhere (RFC 8252 compliance)
+
+### Files Changed
+- `docker/patch-indigo.sh` (new)
+- `docker/backend.Dockerfile` (patch step added)
+- `backend/internal/auth/oauth.go` (reverted to `NewLocalhostConfig`)
+- `backend/internal/handlers/auth.go` (reverted JWKS injection)
+- `backend/cmd/server/main.go` (reverted `OAUTH_PRIVATE_KEY`)
+- `backend/.env` & `.env.example` (`127.0.0.1`, removed `OAUTH_PRIVATE_KEY`)
+- `docker-compose.yml` (`127.0.0.1`, removed `OAUTH_PRIVATE_KEY`)
+- `backend/go.mod` (1.22 → 1.26)
+
+### Build Status
+Compiles successfully with patched SDK.
+
+### Struggles & Notes for Future
+- **Go toolchain split**: System `go` is 1.22.2 (too old). Use `/usr/local/go/bin/go` (1.26.4). `go.mod` auto-updated by `go mod tidy`.
+- **Indigo SDK patch is temporary**: If the SDK fixes this upstream, remove `docker/patch-indigo.sh` and revert Dockerfile changes.
+
+---
+
 ## Next Steps
 
-### Step 1: End-to-End Testing
-The full stack is running. Now we need to verify the OAuth login flow works:
-- Open http://localhost:5173 in browser
-- Enter a Bluesky handle on the login page
-- Complete OAuth flow (redirects to PDS, back to callback)
-- Verify session cookie is set and `/api/auth/me` returns user data
+### Step 1: End-to-End OAuth Test
+- Start Docker: `docker compose up -d --build`
+- Login with a real Bluesky handle at `http://127.0.0.1:5173`
+- Verify no more `invalid_request` or `localhost` errors
+- Verify callback, token exchange, and session persistence
 
 ### Step 2: Functional Testing
 - Create a tracking board
@@ -108,7 +153,7 @@ The full stack is running. Now we need to verify the OAuth login flow works:
 - Verify streak counter increments/decrements correctly
 
 ### Step 3: Known Gaps / TODO
-- **OAuth client registration**: The app needs to be registered as an OAuth client with Bluesky. For development, we may need to use a local config or mock.
+- **Local dev ngrok requirement**: Need a smooth ngrok workflow for OAuth testing
 - **Error handling**: Some API error responses are generic; need user-friendly messages in UI
 - **Loading states**: Skeleton loaders not implemented yet
 - **Empty states**: Dashboard shows placeholder when no boards exist
@@ -136,6 +181,6 @@ npm run dev
 ```
 
 Access:
-- **App**: http://localhost:5173
-- **API**: http://localhost:8080
+- **App**: http://127.0.0.1:5173
+- **API**: http://127.0.0.1:8080
 - **Database**: localhost:5432

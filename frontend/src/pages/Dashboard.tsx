@@ -3,7 +3,7 @@ import { api } from '../lib/api'
 import type { Board } from '../types'
 import { BoardCard } from '../components/BoardCard'
 import { CreateBoardModal } from '../components/CreateBoardModal'
-import { Plus, LayoutDashboard } from 'lucide-react'
+import { Plus } from 'lucide-react'
 
 export function Dashboard() {
   const [boards, setBoards] = useState<Board[]>([])
@@ -26,45 +26,43 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-primary border-t-transparent" />
+      <div className="flex items-center justify-center h-64 font-mono">
+        <div className="text-text-muted text-sm animate-pulse">&gt; loading boards...</div>
       </div>
     )
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="font-mono">
+      <div className="flex items-center justify-between mb-6 border-b border-border pb-3">
         <div>
-          <h1 className="text-2xl font-bold text-text dark:text-text-dark flex items-center gap-2">
-            <LayoutDashboard className="w-6 h-6" />
-            Your Boards
+          <h1 className="text-xl font-bold text-primary tracking-wider">
+            [BOARDS]
           </h1>
-          <p className="text-text-muted mt-1">Track habits, goals, and daily routines</p>
+          <p className="text-text-muted text-xs mt-1">track habits // goals // routines</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-primary hover:bg-primary-light text-white font-medium py-2 px-4 rounded-lg transition-colors"
+          className="flex items-center gap-2 border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-1.5 px-3 transition-colors text-sm"
         >
           <Plus className="w-4 h-4" />
-          New Board
+          NEW_BOARD
         </button>
       </div>
 
       {boards.length === 0 ? (
-        <div className="text-center py-16 bg-surface dark:bg-surface-dark rounded-2xl border border-dashed border-border dark:border-border-dark">
-          <LayoutDashboard className="w-12 h-12 text-text-muted mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-text dark:text-text-dark mb-2">No boards yet</h3>
-          <p className="text-text-muted mb-4">Create your first board to start tracking habits</p>
+        <div className="text-center py-16 border border-dashed border-border bg-surface">
+          <h3 className="text-lg font-bold text-primary mb-2">[NO DATA]</h3>
+          <p className="text-text-muted mb-4 text-sm">Initialize first board to begin tracking</p>
           <button
             onClick={() => setShowCreate(true)}
-            className="bg-primary hover:bg-primary-light text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            className="border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-2 px-4 transition-colors text-sm"
           >
-            Create Board
+            INIT_BOARD
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {boards.map(board => (
             <BoardCard key={board.id} board={board} />
           ))}

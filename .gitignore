@@ -1,5 +1,6 @@
 # Backend
 backend/.env
+backend/server
 backend/tmp/
 backend/vendor/
 
