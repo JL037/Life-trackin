@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
 import type { User } from '../types'
-import { ArrowLeft, Save, User, Globe, Lock, Users } from 'lucide-react'
+import { ArrowLeft, Save, User as UserIcon, Globe, Lock, Users } from 'lucide-react'
 
 export function Profile() {
   const { user: authUser } = useAuth()
@@ -91,7 +91,7 @@ export function Profile() {
         </div>
         <div className="flex items-center gap-3 mb-3">
           <div className="w-12 h-12 border border-primary/30 bg-bg flex items-center justify-center">
-            <User className="w-6 h-6 text-primary" />
+            <UserIcon className="w-6 h-6 text-primary" />
           </div>
           <div>
             <h2 className="text-sm font-bold text-primary">@{user.handle}</h2>
