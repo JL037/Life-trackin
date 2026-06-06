@@ -1,24 +1,277 @@
-# Backend
-backend/.env
+# =============================================================================
+# LifeTrack — Comprehensive .gitignore
+# =============================================================================
+# This file is designed to be forward-looking. It covers not just our current
+# stack (Go + React + PostgreSQL + Docker) but also anticipated Phase 2-4
+# features, deployment tooling, testing infrastructure, and common developer
+# environment files.
+#
+# If you add a new tool or category, add its artifacts here with a comment.
+# =============================================================================
+
+
+# -----------------------------------------------------------------------------
+# SECRETS & ENVIRONMENT
+# -----------------------------------------------------------------------------
+# NEVER commit secrets. .env.example is the ONLY env file that should be
+# committed (as a template). All other env variants are ignored.
+
+.env
+.env.*
+!.env.example
+
+# OAuth / crypto keys (AT Protocol, JWT, TLS)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# If we ever add a secrets directory
+secrets/
+.credentials/
+
+
+# -----------------------------------------------------------------------------
+# GO BACKEND
+# -----------------------------------------------------------------------------
+
+# Compiled binaries (backend name may change, ignore all)
+backend/*.exe
+backend/*.dll
+backend/*.so
+backend/*.dylib
 backend/server
+backend/lifetrack
+backend/lifetrack-server
+backend/main
+backend/app
+
+# Build & temp artifacts
 backend/tmp/
+backend/build/
 backend/vendor/
 
-# Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.env
-frontend/.env.local
+# Go workspace (if someone initializes one locally)
+go.work
+go.work.sum
 
-# IDE
+# Go test & coverage
+*.test
+*.out
+coverage.out
+coverage.html
+*.cover
+*.prof
+cpu.out
+mem.out
+
+# Air live-reload (backend/.air.toml is config, committed; these are generated)
+backend/tmp/main
+backend/tmp/build-errors.log
+
+# Go module download cache (if someone runs with -mod=vendor or similar)
+# Note: go.sum and go.mod are NOT ignored — they are critical for reproducible builds
+
+
+# -----------------------------------------------------------------------------
+# REACT / VITE FRONTEND
+# -----------------------------------------------------------------------------
+
+# Dependencies
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+frontend/dist-ssr/
+
+# Vite cache & dev artifacts
+frontend/.vite/
+frontend/dev-dist/
+
+# TypeScript build info
+frontend/*.tsbuildinfo
+
+# ESLint / Prettier cache
+frontend/.eslintcache
+frontend/.prettiercache
+
+# Test coverage
+frontend/coverage/
+frontend/.nyc_output/
+
+# E2E testing artifacts (Phase 4 / future)
+frontend/test-results/
+frontend/playwright-report/
+frontend/cypress/screenshots/
+frontend/cypress/videos/
+
+# Storybook (if we add it later)
+frontend/storybook-static/
+
+# Generated PWA dev files (vite-plugin-pwa sometimes drops these in root)
+dev-dist/
+*.sw.js.map
+workbox-*.js.map
+
+# Package manager lock files — we commit package-lock.json for npm reproducibility
+# Do NOT ignore: package-lock.json, pnpm-lock.yaml, yarn.lock
+
+
+# -----------------------------------------------------------------------------
+# DATABASE
+# -----------------------------------------------------------------------------
+
+# Docker PostgreSQL data volume
+pgdata/
+
+# Local database dumps & backups
+*.dump
+*.backup
+*.sql
+# Exception: migrations are committed
+!backend/migrations/*.sql
+
+# Migration tools metadata
+.migrate/
+
+
+# -----------------------------------------------------------------------------
+# DOCKER
+# -----------------------------------------------------------------------------
+
+# Docker Compose local overrides (for developer-specific config)
+docker-compose.override.yml
+docker-compose.*.override.yml
+
+# Docker build cache / local state
+.docker/
+
+
+# -----------------------------------------------------------------------------
+# MEDIA & UPLOADS (Future: Phase 3+ social features)
+# -----------------------------------------------------------------------------
+# If we add file uploads (avatars, cover images, exported data), these
+# directories would be created locally during development.
+
+uploads/
+media/
+public/uploads/
+tmp/uploads/
+
+# Exported data files (Phase 4: data export feature)
+*.csv
+*.jsonl
+*.xlsx
+exports/
+
+
+# -----------------------------------------------------------------------------
+# LOGS
+# -----------------------------------------------------------------------------
+
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# -----------------------------------------------------------------------------
+# IDE & EDITOR CONFIGS
+# -----------------------------------------------------------------------------
+# Personal IDE settings should never be committed. Shared settings (like
+# .vscode/extensions.json or .vscode/launch.json templates) can be committed
+# explicitly with !.vscode/shared.json if needed.
+
 .idea/
 .vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
 *.swp
 *.swo
+*~
 
-# OS
+# New editors gaining popularity
+.cursor/
+.zed/
+.windsurf/
+.claude/
+
+# VS Code local history
+.history/
+
+
+# -----------------------------------------------------------------------------
+# OS FILES
+# -----------------------------------------------------------------------------
+
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Docker
-pgdata/
+
+# -----------------------------------------------------------------------------
+# DEPLOYMENT & INFRASTRUCTURE (Future)
+# -----------------------------------------------------------------------------
+# If we add Fly.io, Vercel, Netlify, Terraform, etc.
+
+.fly/
+.vercel/
+.netlify/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Kubernetes secrets (if we ever self-host)
+k8s/secrets/
+
+# CI/CD local test outputs
+.github/workflows/*.local.yml
+
+
+# -----------------------------------------------------------------------------
+# MONITORING & OBSERVABILITY (Future: Phase 4+)
+# -----------------------------------------------------------------------------
+# If we add OpenTelemetry, Sentry, Prometheus, etc.
+
+# Local trace dumps
+*.trace
+jaeger-data/
+
+# Benchmark results
+*.bench
+benchmark-results/
+
+
+# -----------------------------------------------------------------------------
+# MISC
+# -----------------------------------------------------------------------------
+
+# direnv (per-project env vars)
+.envrc
+
+# asdf version manager
+.tool-versions
+
+# Local SSL for HTTPS dev
+localhost-key.pem
+localhost.pem
+mkcert*
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+
+# Archive files
+*.zip
+*.tar.gz
+*.tgz
+
+# If we ever add a docs build step
+docs/_build/
