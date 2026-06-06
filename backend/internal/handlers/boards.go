@@ -242,6 +242,59 @@ func (h *BoardHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, `{"status":"deleted"}`)
 }
 
+func (h *BoardHandler) Stats(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := middleware.GetUserID(ctx)
+	boardID := chi.URLParam(r, "boardID")
+
+	// Verify board ownership
+	var ownerID string
+	err := h.pool.QueryRow(ctx, `SELECT user_id FROM boards WHERE id = $1`, boardID).Scan(&ownerID)
+	if err != nil || ownerID != userID {
+		http.Error(w, `{"error":"board not found"}`, http.StatusNotFound)
+		return
+	}
+
+	type BoardStats struct {
+		HabitCount      int     `json:"habit_count"`
+		CurrentStreak   int     `json:"current_streak"`
+		LongestStreak   int     `json:"longest_streak"`
+		TotalEntries    int     `json:"total_entries"`
+		LastEntryDate   *string `json:"last_entry_date,omitempty"`
+	}
+
+	var stats BoardStats
+	var lastEntryDate *time.Time
+
+	err = h.pool.QueryRow(ctx,
+		`SELECT 
+			COUNT(DISTINCT h.id),
+			COALESCE(MAX(s.current_streak), 0),
+			COALESCE(MAX(s.longest_streak), 0),
+			COUNT(DISTINCT e.id),
+			MAX(e.date)
+		 FROM boards b
+		 LEFT JOIN habits h ON h.board_id = b.id AND h.archived = false
+		 LEFT JOIN streaks s ON s.habit_id = h.id
+		 LEFT JOIN entries e ON e.habit_id = h.id
+		 WHERE b.id = $1 AND b.user_id = $2`,
+		boardID, userID,
+	).Scan(&stats.HabitCount, &stats.CurrentStreak, &stats.LongestStreak, &stats.TotalEntries, &lastEntryDate)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to fetch board stats: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+
+	if lastEntryDate != nil {
+		s := lastEntryDate.Format("2006-01-02")
+		stats.LastEntryDate = &s
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
+}
+
 func (h *BoardHandler) Heatmap(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := middleware.GetUserID(ctx)

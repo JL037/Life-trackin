@@ -72,6 +72,7 @@ func main() {
 	boardHandler := handlers.NewBoardHandler(pool)
 	habitHandler := handlers.NewHabitHandler(pool)
 	entryHandler := handlers.NewEntryHandler(pool)
+	publicHandler := handlers.NewPublicHandler(pool)
 
 	// Setup router
 	r := chi.NewRouter()
@@ -115,6 +116,7 @@ func main() {
 		r.Get("/boards/{boardID}", boardHandler.Get)
 		r.Put("/boards/{boardID}", boardHandler.Update)
 		r.Delete("/boards/{boardID}", boardHandler.Delete)
+		r.Get("/boards/{boardID}/stats", boardHandler.Stats)
 		r.Get("/boards/{boardID}/heatmap", boardHandler.Heatmap)
 
 		// Habits
@@ -129,6 +131,13 @@ func main() {
 		r.Get("/habits/{habitID}/entries", entryHandler.List)
 		r.Get("/habits/{habitID}/streak", entryHandler.Streak)
 		r.Delete("/entries/{entryID}", entryHandler.Delete)
+	})
+
+	// Public API routes (no auth required)
+	r.Route("/api/public", func(r chi.Router) {
+		r.Get("/users/{handle}", publicHandler.GetUser)
+		r.Get("/users/{handle}/boards", publicHandler.ListBoards)
+		r.Get("/boards/{boardID}/stats", publicHandler.BoardStats)
 	})
 
 	// Start server

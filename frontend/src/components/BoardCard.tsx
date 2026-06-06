@@ -1,19 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
-import type { Board } from '../types'
-import { Heatmap } from './Heatmap'
+import type { Board, BoardStats } from '../types'
 import { ConfirmModal } from './ConfirmModal'
-import { ArrowRight, Lock, Globe, Users, Trash2 } from 'lucide-react'
+import { ArrowRight, Lock, Globe, Users, Trash2, Hash, Flame, Activity } from 'lucide-react'
 
 interface Props {
   board: Board
   onDeleted?: (id: string) => void
 }
 
+function formatRelativeDate(dateStr?: string): string {
+  if (!dateStr) return 'never'
+  const date = new Date(dateStr + 'T00:00:00')
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'today'
+  if (diffDays === 1) return 'yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
+  return `${Math.floor(diffDays / 365)} years ago`
+}
+
 export function BoardCard({ board, onDeleted }: Props) {
+  const [stats, setStats] = useState<BoardStats | null>(null)
   const [showDelete, setShowDelete] = useState(false)
   const [isDeleted, setIsDeleted] = useState(false)
+
+  useEffect(() => {
+    api.boards.stats(board.id)
+      .then((data: BoardStats) => setStats(data))
+      .catch(console.error)
+  }, [board.id])
 
   const visibilityIcon = {
     private: <Lock className="w-3 h-3" />,
@@ -30,9 +49,11 @@ export function BoardCard({ board, onDeleted }: Props) {
 
   if (isDeleted) return null
 
+  const isActive = stats?.last_entry_date && formatRelativeDate(stats.last_entry_date) === 'today'
+
   return (
     <>
-      <div className="block border border-border bg-surface p-3 hover:border-primary/50 transition-colors group relative">
+      <div className="block border border-border bg-surface p-4 hover:border-primary/50 transition-colors group relative">
         <button
           onClick={(e) => {
             e.preventDefault()
@@ -46,7 +67,7 @@ export function BoardCard({ board, onDeleted }: Props) {
         </button>
 
         <Link to={`/board/${board.id}`} className="block">
-          <div className="flex items-start justify-between mb-2 pr-8">
+          <div className="flex items-start justify-between mb-3 pr-8">
             <div>
               <h3 className="font-bold text-primary group-hover:text-primary-dim transition-colors text-sm">
                 [{board.name}]
@@ -61,11 +82,45 @@ export function BoardCard({ board, onDeleted }: Props) {
             </div>
           </div>
 
-          <Heatmap boardId={board.id} compact year={new Date().getFullYear()} />
+          {/* Stats grid */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="border border-border bg-bg p-2">
+              <div className="flex items-center gap-1 text-text-muted mb-1">
+                <Hash className="w-3 h-3" />
+                <span className="text-[10px] uppercase">habits</span>
+              </div>
+              <p className="text-lg font-bold text-primary">{stats?.habit_count ?? 0}</p>
+            </div>
 
-          <div className="mt-2 flex items-center gap-1 text-xs text-primary group-hover:gap-2 transition-all">
-            <span>&gt; open_board</span>
-            <ArrowRight className="w-3 h-3" />
+            <div className="border border-border bg-bg p-2">
+              <div className="flex items-center gap-1 text-text-muted mb-1">
+                <Flame className="w-3 h-3" />
+                <span className="text-[10px] uppercase">streak</span>
+              </div>
+              <p className="text-lg font-bold text-primary">{stats?.current_streak ?? 0}d</p>
+            </div>
+
+            <div className="border border-border bg-bg p-2">
+              <div className="flex items-center gap-1 text-text-muted mb-1">
+                <Activity className="w-3 h-3" />
+                <span className="text-[10px] uppercase">entries</span>
+              </div>
+              <p className="text-lg font-bold text-primary">{stats?.total_entries ?? 0}</p>
+            </div>
+          </div>
+
+          {/* Activity indicator */}
+          <div className="flex items-center justify-between text-xs text-text-muted border-t border-border pt-2">
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full ${isActive ? 'bg-primary animate-pulse' : 'bg-text-dim'}`}
+              />
+              <span>{isActive ? 'active today' : `last: ${formatRelativeDate(stats?.last_entry_date)}`}</span>
+            </div>
+            <div className="flex items-center gap-1 text-primary group-hover:gap-2 transition-all">
+              <span>&gt; open</span>
+              <ArrowRight className="w-3 h-3" />
+            </div>
           </div>
         </Link>
       </div>

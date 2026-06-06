@@ -6,6 +6,7 @@ import { Dashboard } from './pages/Dashboard'
 import { BoardView } from './pages/BoardView'
 import { HabitView } from './pages/HabitView'
 import { Profile } from './pages/Profile'
+import { PublicProfile } from './pages/PublicProfile'
 
 function App() {
   const { user, loading } = useAuth()
@@ -36,6 +37,7 @@ function App() {
           <Route path="/board/:boardId" element={<BoardView />} />
           <Route path="/habit/:habitId" element={<HabitView />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/user/:handle" element={<PublicProfile />} />
         </Routes>
       </Layout>
     </BrowserRouter>

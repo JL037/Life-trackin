@@ -77,3 +77,11 @@ export interface HeatmapResponse {
   total_days: number
   active_days: number
 }
+
+export interface BoardStats {
+  habit_count: number
+  current_streak: number
+  longest_streak: number
+  total_entries: number
+  last_entry_date?: string
+}

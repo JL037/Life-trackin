@@ -39,6 +39,7 @@ export const api = {
     update: (id: string, data: unknown) =>
       fetcher(`/boards/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => fetcher(`/boards/${id}`, { method: 'DELETE' }),
+    stats: (id: string) => fetcher(`/boards/${id}/stats`),
     heatmap: (id: string, year?: number) => {
       const q = year ? `?year=${year}` : ''
       return fetcher(`/boards/${id}/heatmap${q}`)
@@ -67,5 +68,11 @@ export const api = {
     create: (habitId: string, data: unknown) =>
       fetcher(`/habits/${habitId}/entries`, { method: 'POST', body: JSON.stringify(data) }),
     delete: (entryId: string) => fetcher(`/entries/${entryId}`, { method: 'DELETE' }),
+  },
+
+  public: {
+    user: (handle: string) => fetcher(`/public/users/${handle}`),
+    boards: (handle: string) => fetcher(`/public/users/${handle}/boards`),
+    boardStats: (boardId: string) => fetcher(`/public/boards/${boardId}/stats`),
   },
 }
