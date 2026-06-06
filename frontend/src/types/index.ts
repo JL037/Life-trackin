@@ -67,6 +67,9 @@ export interface HeatmapDay {
   date: string
   value: number
   level: number
+  completion_status?: 'none' | 'partial' | 'complete'
+  completed_habits?: string[]
+  total_habits?: number
 }
 
 export interface HeatmapResponse {

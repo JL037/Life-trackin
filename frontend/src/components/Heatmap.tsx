@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import { cn, getHeatmapColor } from '../lib/utils'
+import { cn, getHeatmapColor, getBoardCompletionColor } from '../lib/utils'
 import { Tooltip } from './Tooltip'
 import type { HeatmapResponse } from '../types'
 
@@ -31,9 +31,39 @@ function getContributionLevelText(level: number): string {
   return ''
 }
 
+function getCompletionStatusText(status?: string): string {
+  if (status === 'none') return 'Nothing done'
+  if (status === 'partial') return 'Partial'
+  if (status === 'complete') return 'All done'
+  return ''
+}
+
+function buildBoardTooltip(day: { date: string; completion_status?: string; completed_habits?: string[]; total_habits?: number; value: number }): string {
+  if (!day.date) return ''
+
+  const dateLabel = formatDateLabel(day.date)
+  const completedCount = day.completed_habits?.length ?? 0
+  const total = day.total_habits ?? 0
+  const statusText = getCompletionStatusText(day.completion_status)
+
+  let tooltip = `${dateLabel} — ${statusText}`
+  if (total > 0) {
+    tooltip += ` (${completedCount}/${total})`
+  }
+
+  if (day.completed_habits && day.completed_habits.length > 0) {
+    tooltip += `\nDone: ${day.completed_habits.join(', ')}`
+  }
+
+  return tooltip
+}
+
 export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), compact = false }: Props) {
   const [data, setData] = useState<HeatmapResponse | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Determine mode: board-level uses completion status, habit-level uses value levels
+  const isBoardMode = !!boardId
 
   useEffect(() => {
     if (boardId) {
@@ -85,19 +115,24 @@ export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), com
         <div className="flex gap-[3px] min-w-0">
           {recentWeeks.map((week, wi) => (
             <div key={wi} className="flex flex-col gap-[3px]">
-              {week.map((day, di) => (
-                <Tooltip
-                  key={di}
-                  content={day.date ? `${formatDateLabel(day.date)} — ${getContributionLevelText(day.level)}` : ''}
-                >
-                  <div
-                    className="w-[6px] h-[6px] rounded-[1px] flex-shrink-0"
-                    style={{
-                      backgroundColor: day.level >= 0 ? getHeatmapColor(day.level) : 'transparent',
-                    }}
-                  />
-                </Tooltip>
-              ))}
+              {week.map((day, di) => {
+                const tooltipContent = isBoardMode && day.completion_status
+                  ? buildBoardTooltip(day)
+                  : day.date ? `${formatDateLabel(day.date)} — ${getContributionLevelText(day.level)}` : ''
+
+                const bgColor = isBoardMode && day.completion_status
+                  ? getBoardCompletionColor(day.completion_status)
+                  : day.level >= 0 ? getHeatmapColor(day.level) : 'transparent'
+
+                return (
+                  <Tooltip key={di} content={tooltipContent}>
+                    <div
+                      className="w-[6px] h-[6px] rounded-[1px] flex-shrink-0"
+                      style={{ backgroundColor: bgColor }}
+                    />
+                  </Tooltip>
+                )
+              })}
             </div>
           ))}
         </div>
@@ -124,25 +159,22 @@ export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), com
           {weeks.map((week, wi) => (
             <div key={wi} className="flex flex-col gap-1.5">
               {week.map((day, di) => {
-                if (di === 0 && day.date) {
-                  const date = new Date(day.date + 'T00:00:00')
-                  if (date.getDate() <= 7) {
-                    // Show month label
-                  }
-                }
+                const tooltipContent = isBoardMode && day.completion_status
+                  ? buildBoardTooltip(day)
+                  : day.date ? `${formatDateLabel(day.date)} — ${getContributionLevelText(day.level)}` : ''
+
+                const bgColor = isBoardMode && day.completion_status
+                  ? getBoardCompletionColor(day.completion_status)
+                  : day.level >= 0 ? getHeatmapColor(day.level) : 'transparent'
+
                 return (
-                  <Tooltip
-                    key={di}
-                    content={day.date ? `${formatDateLabel(day.date)} — ${getContributionLevelText(day.level)}` : ''}
-                  >
+                  <Tooltip key={di} content={tooltipContent}>
                     <div
                       className={cn(
                         "w-3 h-3 rounded-sm cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all",
-                        day.level < 0 && "bg-transparent"
+                        day.level < 0 && !day.completion_status && "bg-transparent"
                       )}
-                      style={{
-                        backgroundColor: day.level >= 0 ? getHeatmapColor(day.level) : 'transparent',
-                      }}
+                      style={{ backgroundColor: bgColor }}
                     />
                   </Tooltip>
                 )
@@ -152,20 +184,37 @@ export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), com
         </div>
       </div>
 
-      <div className="flex items-center justify-between mt-3 text-xs text-text-muted font-mono">
-        <span>{data.active_days} active_days</span>
-        <div className="flex items-center gap-1.5">
-          <span>min</span>
-          {[0, 1, 2, 3, 4].map(level => (
-            <div
-              key={level}
-              className="w-3 h-3"
-              style={{ backgroundColor: getHeatmapColor(level) }}
-            />
-          ))}
-          <span>max</span>
+      {/* Legend */}
+      {isBoardMode ? (
+        <div className="flex items-center justify-between mt-3 text-xs text-text-muted font-mono">
+          <span>{data.active_days} active_days</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#5a1a1a' }} />
+              <span>none</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#b8a030' }} />
+              <span>partial</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#40c463' }} />
+              <span>complete</span>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between mt-3 text-xs text-text-muted font-mono">
+          <span>{data.active_days} active_days</span>
+          <div className="flex items-center gap-1.5">
+            <span>min</span>
+            {[0, 1, 2, 3, 4].map(level => (
+              <div key={level} className="w-3 h-3" style={{ backgroundColor: getHeatmapColor(level) }} />
+            ))}
+            <span>max</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

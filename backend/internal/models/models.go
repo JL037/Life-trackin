@@ -71,9 +71,12 @@ type Streak struct {
 }
 
 type HeatmapDay struct {
-	Date  string  `json:"date"`
-	Value float64 `json:"value"`
-	Level int     `json:"level"`
+	Date             string   `json:"date"`
+	Value            float64  `json:"value"`
+	Level            int      `json:"level"`
+	CompletionStatus string   `json:"completion_status,omitempty"` // "none", "partial", "complete"
+	CompletedHabits  []string `json:"completed_habits,omitempty"`
+	TotalHabits      int      `json:"total_habits,omitempty"`
 }
 
 type HeatmapResponse struct {

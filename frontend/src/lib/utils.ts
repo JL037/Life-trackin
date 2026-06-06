@@ -30,6 +30,15 @@ export function getHeatmapColor(level: number): string {
   return colors[level] || colors[0]
 }
 
+export function getBoardCompletionColor(status: 'none' | 'partial' | 'complete'): string {
+  const colors = {
+    none: '#5a1a1a',      // muted dark red
+    partial: '#b8a030',  // muted gold
+    complete: '#40c463', // bright green
+  }
+  return colors[status] || colors.none
+}
+
 export function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)

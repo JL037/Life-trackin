@@ -316,18 +316,44 @@ func (h *BoardHandler) Heatmap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get all entries for habits in this board for the given year
+	// Get all active habits for this board
+	type habitInfo struct {
+		id   string
+		name string
+	}
+	var habits []habitInfo
+	var totalHabits int
+
+	habitRows, err := h.pool.Query(ctx,
+		`SELECT id, name FROM habits WHERE board_id = $1 AND archived = false ORDER BY position ASC, created_at ASC`,
+		boardID,
+	)
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error":"failed to fetch habits: %v"}`, err), http.StatusInternalServerError)
+		return
+	}
+	for habitRows.Next() {
+		var h habitInfo
+		if err := habitRows.Scan(&h.id, &h.name); err != nil {
+			continue
+		}
+		habits = append(habits, h)
+	}
+	habitRows.Close()
+	totalHabits = len(habits)
+
+	// Build habit lookup map
+	habitNames := make(map[string]string)
+	for _, h := range habits {
+		habitNames[h.id] = h.name
+	}
+
+	// Get all entries for the year
 	startDate := fmt.Sprintf("%d-01-01", year)
 	endDate := fmt.Sprintf("%d-12-31", year)
 
 	rows, err := h.pool.Query(ctx,
-		`SELECT e.date, 
-		        CASE 
-		            WHEN h.type = 'binary' THEN CASE WHEN e.value_bool THEN 1.0 ELSE 0.0 END
-		            WHEN h.type = 'quantitative' THEN COALESCE(e.value_numeric / NULLIF(h.target_value, 0), 0)
-		            WHEN h.type = 'timed' THEN COALESCE(EXTRACT(EPOCH FROM e.value_duration) / NULLIF(EXTRACT(EPOCH FROM (h.target_value || ' minutes')::interval), 0), 0)
-		            ELSE 0
-		        END as completion_ratio
+		`SELECT e.date, e.habit_id, e.value_bool, e.value_numeric, h.type, h.target_value
 		 FROM entries e
 		 JOIN habits h ON h.id = e.habit_id
 		 WHERE h.board_id = $1 AND e.date BETWEEN $2 AND $3
@@ -340,25 +366,50 @@ func (h *BoardHandler) Heatmap(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	// Aggregate by date
-	dayMap := make(map[string]float64)
-	dayCount := make(map[string]int)
+	// date -> set of completed habit IDs
+	type dayData struct {
+		completed map[string]bool
+	}
+	dayMap := make(map[string]*dayData)
 	for rows.Next() {
 		var date time.Time
-		var ratio float64
-		if err := rows.Scan(&date, &ratio); err != nil {
+		var habitID string
+		var valueBool *bool
+		var valueNumeric *float64
+		var habitType string
+		var targetValue float64
+		if err := rows.Scan(&date, &habitID, &valueBool, &valueNumeric, &habitType, &targetValue); err != nil {
 			continue
 		}
 		d := date.Format("2006-01-02")
-		dayMap[d] += ratio
-		dayCount[d]++
+		if dayMap[d] == nil {
+			dayMap[d] = &dayData{completed: make(map[string]bool)}
+		}
+
+		// Determine if this habit was "completed" for the day
+		completed := false
+		switch habitType {
+		case "binary":
+			completed = valueBool != nil && *valueBool
+		case "quantitative":
+			completed = valueNumeric != nil && *valueNumeric > 0
+		case "timed":
+			// For timed, any logged duration counts as "done" for the day
+			completed = true
+		}
+		if completed {
+			dayMap[d].completed[habitID] = true
+		}
 	}
 
 	// Build response
 	type HeatmapDay struct {
-		Date  string  `json:"date"`
-		Value float64 `json:"value"`
-		Level int     `json:"level"`
+		Date             string   `json:"date"`
+		Value            float64  `json:"value"`
+		Level            int      `json:"level"`
+		CompletionStatus string   `json:"completion_status"`
+		CompletedHabits  []string `json:"completed_habits"`
+		TotalHabits      int      `json:"total_habits"`
 	}
 
 	days := []HeatmapDay{}
@@ -368,28 +419,42 @@ func (h *BoardHandler) Heatmap(w http.ResponseWriter, r *http.Request) {
 
 	for d := start; !d.After(end); d = d.AddDate(0, 0, 1) {
 		dateStr := d.Format("2006-01-02")
-		avg := 0.0
-		if count, ok := dayCount[dateStr]; ok && count > 0 {
-			avg = dayMap[dateStr] / float64(count)
+		day := HeatmapDay{
+			Date:        dateStr,
+			Value:       0,
+			Level:       0,
+			TotalHabits: totalHabits,
+		}
+
+		if data, ok := dayMap[dateStr]; ok && totalHabits > 0 {
+			completedCount := len(data.completed)
+			day.Value = float64(completedCount) / float64(totalHabits)
 			activeDays++
+
+			// Build list of completed habit names
+			for hid := range data.completed {
+				if name, exists := habitNames[hid]; exists {
+					day.CompletedHabits = append(day.CompletedHabits, name)
+				}
+			}
+
+			// Determine completion status
+			if completedCount == 0 {
+				day.CompletionStatus = "none"
+				day.Level = 0
+			} else if completedCount == totalHabits {
+				day.CompletionStatus = "complete"
+				day.Level = 4
+			} else {
+				day.CompletionStatus = "partial"
+				day.Level = 2
+			}
+		} else {
+			day.CompletionStatus = "none"
+			day.Level = 0
 		}
 
-		level := 0
-		if avg > 0 && avg <= 0.25 {
-			level = 1
-		} else if avg > 0.25 && avg <= 0.5 {
-			level = 2
-		} else if avg > 0.5 && avg <= 0.75 {
-			level = 3
-		} else if avg > 0.75 {
-			level = 4
-		}
-
-		days = append(days, HeatmapDay{
-			Date:  dateStr,
-			Value: avg,
-			Level: level,
-		})
+		days = append(days, day)
 	}
 
 	resp := map[string]any{
