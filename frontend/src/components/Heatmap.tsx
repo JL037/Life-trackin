@@ -77,25 +77,30 @@ export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), com
   }
 
   if (compact) {
+    // Show only the last 12 weeks (~3 months) so it fits cleanly in cards
+    const recentWeeks = weeks.slice(-12)
+
     return (
-      <div className="flex gap-0.5">
-        {weeks.map((week, wi) => (
-          <div key={wi} className="flex flex-col gap-0.5">
-            {week.map((day, di) => (
-              <Tooltip
-                key={di}
-                content={day.date ? `${formatDateLabel(day.date)} — ${getContributionLevelText(day.level)}` : ''}
-              >
-                <div
-                  className="w-2.5 h-2.5 rounded-sm"
-                  style={{
-                    backgroundColor: day.level >= 0 ? getHeatmapColor(day.level) : 'transparent',
-                  }}
-                />
-              </Tooltip>
-            ))}
-          </div>
-        ))}
+      <div className="overflow-x-auto max-w-full">
+        <div className="flex gap-[3px] min-w-0">
+          {recentWeeks.map((week, wi) => (
+            <div key={wi} className="flex flex-col gap-[3px]">
+              {week.map((day, di) => (
+                <Tooltip
+                  key={di}
+                  content={day.date ? `${formatDateLabel(day.date)} — ${getContributionLevelText(day.level)}` : ''}
+                >
+                  <div
+                    className="w-[6px] h-[6px] rounded-[1px] flex-shrink-0"
+                    style={{
+                      backgroundColor: day.level >= 0 ? getHeatmapColor(day.level) : 'transparent',
+                    }}
+                  />
+                </Tooltip>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
