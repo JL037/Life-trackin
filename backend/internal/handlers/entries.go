@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -74,7 +75,7 @@ func (h *EntryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update streak
+	// Update streak asynchronously
 	go h.updateStreak(habitID)
 
 	w.Header().Set("Content-Type", "application/json")
@@ -138,6 +139,7 @@ func (h *EntryHandler) List(w http.ResponseWriter, r *http.Request) {
 		var date time.Time
 		if err := rows.Scan(&e.ID, &e.HabitID, &date, &e.ValueBool, &e.ValueNumeric,
 			&e.ValueDuration, &e.Notes, &e.CreatedAt, &e.UpdatedAt); err != nil {
+			log.Printf("Failed to scan entry row: %v", err)
 			continue
 		}
 		e.Date = date.Format("2006-01-02")
@@ -191,10 +193,12 @@ func (h *EntryHandler) Streak(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get total completed count
-	h.pool.QueryRow(ctx,
+	if err := h.pool.QueryRow(ctx,
 		`SELECT COUNT(*) FROM entries WHERE habit_id = $1 AND (value_bool = true OR value_numeric > 0 OR value_duration IS NOT NULL)`,
 		habitID,
-	).Scan(&streak.TotalCompleted)
+	).Scan(&streak.TotalCompleted); err != nil {
+		log.Printf("Failed to count completed entries for habit %s: %v", habitID, err)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(streak)
@@ -244,6 +248,7 @@ func (h *EntryHandler) updateStreak(habitID string) {
 		habitID,
 	)
 	if err != nil {
+		log.Printf("Failed to query entries for streak update (habit %s): %v", habitID, err)
 		return
 	}
 	defer rows.Close()
@@ -252,18 +257,25 @@ func (h *EntryHandler) updateStreak(habitID string) {
 	for rows.Next() {
 		var d time.Time
 		if err := rows.Scan(&d); err != nil {
+			log.Printf("Failed to scan entry date for streak (habit %s): %v", habitID, err)
 			continue
 		}
 		dates = append(dates, d)
 	}
 
+	if err := rows.Err(); err != nil {
+		log.Printf("Error iterating entry rows for streak (habit %s): %v", habitID, err)
+	}
+
 	if len(dates) == 0 {
-		h.pool.Exec(ctx,
+		if _, err := h.pool.Exec(ctx,
 			`INSERT INTO streaks (habit_id, current_streak, longest_streak, last_completed_at)
 			 VALUES ($1, 0, 0, NULL)
 			 ON CONFLICT (habit_id) DO UPDATE SET current_streak = 0, updated_at = NOW()`,
 			habitID,
-		)
+		); err != nil {
+			log.Printf("Failed to reset streak for habit %s: %v", habitID, err)
+		}
 		return
 	}
 
@@ -316,12 +328,14 @@ func (h *EntryHandler) updateStreak(habitID string) {
 
 	lastCompleted := dates[0].Format("2006-01-02")
 
-	h.pool.Exec(ctx,
+	if _, err := h.pool.Exec(ctx,
 		`INSERT INTO streaks (habit_id, current_streak, longest_streak, last_completed_at, updated_at)
 		 VALUES ($1, $2, $3, $4, NOW())
 		 ON CONFLICT (habit_id) DO UPDATE SET
 		     current_streak = $2, longest_streak = GREATEST(streaks.longest_streak, $3),
 		     last_completed_at = $4, updated_at = NOW()`,
 		habitID, currentStreak, longestStreak, lastCompleted,
-	)
+	); err != nil {
+		log.Printf("Failed to update streak for habit %s: %v", habitID, err)
+	}
 }

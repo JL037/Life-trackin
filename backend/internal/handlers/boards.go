@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -71,7 +72,9 @@ func (h *BoardHandler) List(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"error":"failed to scan board"}`, http.StatusInternalServerError)
 			return
 		}
-		json.Unmarshal(colorScheme, &b.ColorScheme)
+		if err := json.Unmarshal(colorScheme, &b.ColorScheme); err != nil {
+			log.Printf("Failed to unmarshal color_scheme for board %s: %v", b.ID, err)
+		}
 		boards = append(boards, b)
 	}
 
@@ -100,7 +103,11 @@ func (h *BoardHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	colorScheme := `{"empty": "#ebedf0", "levels": ["#9be9a8", "#40c463", "#30a14e", "#216e39"]}`
 	if req.ColorScheme != nil {
-		cs, _ := json.Marshal(req.ColorScheme)
+		cs, err := json.Marshal(req.ColorScheme)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"invalid color_scheme: %v"}`, err), http.StatusBadRequest)
+			return
+		}
 		colorScheme = string(cs)
 	}
 
@@ -149,7 +156,9 @@ func (h *BoardHandler) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"board not found"}`, http.StatusNotFound)
 		return
 	}
-	json.Unmarshal(colorScheme, &b.ColorScheme)
+	if err := json.Unmarshal(colorScheme, &b.ColorScheme); err != nil {
+		log.Printf("Failed to unmarshal color_scheme for board %s: %v", b.ID, err)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(b)
@@ -182,7 +191,11 @@ func (h *BoardHandler) Update(w http.ResponseWriter, r *http.Request) {
 		argIdx++
 	}
 	if req.ColorScheme != nil {
-		cs, _ := json.Marshal(req.ColorScheme)
+		cs, err := json.Marshal(req.ColorScheme)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"invalid color_scheme: %v"}`, err), http.StatusBadRequest)
+			return
+		}
 		query += fmt.Sprintf(", color_scheme = $%d::jsonb", argIdx)
 		args = append(args, string(cs))
 		argIdx++

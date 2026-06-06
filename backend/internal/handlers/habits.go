@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -88,10 +89,15 @@ func (h *HabitHandler) List(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(&habit.ID, &habit.BoardID, &habit.Name, &habit.Description, &habit.Type,
 			&habit.TargetValue, &habit.Unit, &freq, &config, &habit.Position, &habit.Archived,
 			&habit.CreatedAt, &habit.UpdatedAt); err != nil {
+			log.Printf("Failed to scan habit row: %v", err)
 			continue
 		}
-		json.Unmarshal(freq, &habit.Frequency)
-		json.Unmarshal(config, &habit.Config)
+		if err := json.Unmarshal(freq, &habit.Frequency); err != nil {
+			log.Printf("Failed to unmarshal frequency for habit %s: %v", habit.ID, err)
+		}
+		if err := json.Unmarshal(config, &habit.Config); err != nil {
+			log.Printf("Failed to unmarshal config for habit %s: %v", habit.ID, err)
+		}
 		habits = append(habits, habit)
 	}
 
@@ -131,12 +137,20 @@ func (h *HabitHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	frequency := `{"type": "daily"}`
 	if req.Frequency != nil {
-		f, _ := json.Marshal(req.Frequency)
+		f, err := json.Marshal(req.Frequency)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"invalid frequency: %v"}`, err), http.StatusBadRequest)
+			return
+		}
 		frequency = string(f)
 	}
 	config := `{}`
 	if req.Config != nil {
-		c, _ := json.Marshal(req.Config)
+		c, err := json.Marshal(req.Config)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"invalid config: %v"}`, err), http.StatusBadRequest)
+			return
+		}
 		config = string(c)
 	}
 
@@ -153,7 +167,9 @@ func (h *HabitHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create streak record
-	h.pool.Exec(ctx, `INSERT INTO streaks (habit_id) VALUES ($1) ON CONFLICT DO NOTHING`, habitID)
+	if _, err := h.pool.Exec(ctx, `INSERT INTO streaks (habit_id) VALUES ($1) ON CONFLICT DO NOTHING`, habitID); err != nil {
+		log.Printf("Failed to initialize streak for habit %s: %v", habitID, err)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -197,8 +213,12 @@ func (h *HabitHandler) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"habit not found"}`, http.StatusNotFound)
 		return
 	}
-	json.Unmarshal(freq, &habit.Frequency)
-	json.Unmarshal(config, &habit.Config)
+	if err := json.Unmarshal(freq, &habit.Frequency); err != nil {
+		log.Printf("Failed to unmarshal frequency for habit %s: %v", habit.ID, err)
+	}
+	if err := json.Unmarshal(config, &habit.Config); err != nil {
+		log.Printf("Failed to unmarshal config for habit %s: %v", habit.ID, err)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(habit)
@@ -251,13 +271,21 @@ func (h *HabitHandler) Update(w http.ResponseWriter, r *http.Request) {
 		argIdx++
 	}
 	if req.Frequency != nil {
-		f, _ := json.Marshal(req.Frequency)
+		f, err := json.Marshal(req.Frequency)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"invalid frequency: %v"}`, err), http.StatusBadRequest)
+			return
+		}
 		query += fmt.Sprintf(", frequency = $%d::jsonb", argIdx)
 		args = append(args, string(f))
 		argIdx++
 	}
 	if req.Config != nil {
-		c, _ := json.Marshal(req.Config)
+		c, err := json.Marshal(req.Config)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"invalid config: %v"}`, err), http.StatusBadRequest)
+			return
+		}
 		query += fmt.Sprintf(", config = $%d::jsonb", argIdx)
 		args = append(args, string(c))
 		argIdx++
@@ -276,7 +304,10 @@ func (h *HabitHandler) Update(w http.ResponseWriter, r *http.Request) {
 	query += fmt.Sprintf(" WHERE id = $%d", argIdx)
 	args = append(args, habitID)
 
-	h.pool.Exec(ctx, query, args...)
+	if _, err := h.pool.Exec(ctx, query, args...); err != nil {
+		http.Error(w, `{"error":"failed to update habit"}`, http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, `{"status":"updated"}`)

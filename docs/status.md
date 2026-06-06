@@ -73,14 +73,16 @@
 - **RFC 8252 loopback compliance** — Bluesky rejects `localhost` in `redirect_uri`; must use `127.0.0.1`. All URLs switched accordingly.
 - **Go toolchain split** — System `go` is 1.22.2 (too old for Indigo SDK). Go 1.26.4 installed at `/usr/local/go/bin/go`. `go.mod` updated to `go 1.26`.
 
+## Completed (June 5)
+- **Code hygiene** — Fixed all silent `json.Unmarshal`/`json.Marshal` errors in `boards.go`, `habits.go`, and `entries.go` (now log or return proper HTTP errors)
+- **Streak logging** — Added comprehensive error logging to `updateStreak` goroutine, including `rows.Err()` check after iteration
+- **Missing Exec/Scan error checks** — Fixed ignored `h.pool.Exec` errors in `habits.go` Update handler and `entries.go` Streak handler
+
 ## Current Blockers
-- **43 uncommitted files** — All OAuth fixes, SDK patch, UI polish, migration 000002, and documentation from June 3 exist only on local disk. **Must commit before any further development.**
 - **OAuth never tested end-to-end** — The patch is theoretical until a real Bluesky handle logs in successfully.
 - **Zero tests** — No unit or integration tests for streak calculation, auth flow, or CRUD operations.
 
 ## Next Priority
-1. **Commit all uncommitted work** (43 files) — critical risk mitigation.
-2. **Test OAuth end-to-end** with a real Bluesky handle at `http://127.0.0.1:5173`.
-3. **Smoke test Phase 1 features** — board/habit/entry CRUD, heatmap, streaks.
-4. **Fix silent errors** — `json.Unmarshal` and goroutine errors are swallowed.
-5. Continue Phase 2 features only after Phase 1 is verified working.
+1. **Test OAuth end-to-end** with a real Bluesky handle at `http://127.0.0.1:5173`.
+2. **Smoke test Phase 1 features** — board/habit/entry CRUD, heatmap, streaks.
+3. Continue Phase 2 features only after Phase 1 is verified working.
