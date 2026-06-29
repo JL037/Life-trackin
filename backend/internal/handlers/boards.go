@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/jaredlemler/life-trackin/internal/middleware"
+	"github.com/jaredlemler/life-trackin/internal/validation"
 )
 
 type BoardHandler struct {
@@ -92,8 +93,14 @@ func (h *BoardHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" {
-		http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+	v := validation.New()
+	v.Required("name", req.Name)
+	v.MaxLength("name", req.Name, 255)
+	v.MaxLength("description", req.Description, 2000)
+	if req.Visibility != "" {
+		v.OneOf("visibility", req.Visibility, []string{"private", "public", "followers"})
+	}
+	if v.Respond(w) {
 		return
 	}
 

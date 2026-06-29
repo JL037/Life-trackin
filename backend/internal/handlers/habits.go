@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/jaredlemler/life-trackin/internal/middleware"
+	"github.com/jaredlemler/life-trackin/internal/validation"
 )
 
 type HabitHandler struct {
@@ -124,10 +125,20 @@ func (h *HabitHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" {
-		http.Error(w, `{"error":"name is required"}`, http.StatusBadRequest)
+	v := validation.New()
+	v.Required("name", req.Name)
+	v.MaxLength("name", req.Name, 255)
+	v.MaxLength("description", req.Description, 2000)
+	if req.Type != "" {
+		v.OneOf("type", req.Type, []string{"binary", "quantitative", "timed"})
+	}
+	if req.TargetValue < 0 {
+		v.AddError("target_value", "must be non-negative")
+	}
+	if v.Respond(w) {
 		return
 	}
+
 	if req.Type == "" {
 		req.Type = "binary"
 	}
