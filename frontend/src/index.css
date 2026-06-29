@@ -100,7 +100,5 @@ body::after {
   outline-offset: 2px;
 }
 
-/* No rounded corners anywhere */
-*, *::before, *::after {
-  border-radius: 0 !important;
-}
+/* Terminal aesthetic uses sharp corners by default via component design */
+/* Do NOT use global !important as it breaks intentional Tailwind rounded utilities */

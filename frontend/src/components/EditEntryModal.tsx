@@ -1,21 +1,21 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
-import type { Habit } from '../types'
+import type { Entry, Habit } from '../types'
 import { X, CheckCircle } from 'lucide-react'
-import { getToday } from '../lib/utils'
 
 interface Props {
+  entry: Entry
   habit: Habit
   onClose: () => void
-  onSubmit: () => void
+  onUpdated: (entry: Entry) => void
 }
 
-export function EntryForm({ habit, onClose, onSubmit }: Props) {
-  const [date, setDate] = useState(getToday())
-  const [valueBool, setValueBool] = useState(true)
-  const [valueNumeric, setValueNumeric] = useState<number | ''>('')
-  const [valueDuration, setValueDuration] = useState('')
-  const [notes, setNotes] = useState('')
+export function EditEntryModal({ entry, habit, onClose, onUpdated }: Props) {
+  const [date, setDate] = useState(entry.date)
+  const [valueBool, setValueBool] = useState(entry.value_bool ?? true)
+  const [valueNumeric, setValueNumeric] = useState<number | ''>(entry.value_numeric ?? '')
+  const [valueDuration, setValueDuration] = useState(entry.value_duration || '')
+  const [notes, setNotes] = useState(entry.notes || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,10 +42,17 @@ export function EntryForm({ habit, onClose, onSubmit }: Props) {
     }
 
     try {
-      await api.entries.create(habit.id, data)
-      onSubmit()
+      await api.entries.update(entry.id, data)
+      onUpdated({
+        ...entry,
+        date,
+        value_bool: habit.type === 'binary' ? valueBool : entry.value_bool,
+        value_numeric: habit.type === 'quantitative' ? (valueNumeric === '' ? 0 : Number(valueNumeric)) : entry.value_numeric,
+        value_duration: habit.type === 'timed' ? (valueDuration || '00:00:00') : entry.value_duration,
+        notes,
+      })
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'failed to create entry'
+      const message = err instanceof Error ? err.message : 'failed to update entry'
       setError(message)
     } finally {
       setLoading(false)
@@ -56,7 +63,7 @@ export function EntryForm({ habit, onClose, onSubmit }: Props) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="relative bg-bg border border-border max-w-md w-full p-5 font-mono">
         <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
-          <h2 className="text-sm font-bold text-primary">[LOG_ENTRY]</h2>
+          <h2 className="text-sm font-bold text-primary">[EDIT_ENTRY]</h2>
           <button onClick={onClose} className="p-1 hover:border-primary border border-transparent transition-colors">
             <X className="w-4 h-4 text-primary" />
           </button>
@@ -122,9 +129,7 @@ export function EntryForm({ habit, onClose, onSubmit }: Props) {
                 onChange={(e) => setValueNumeric(e.target.value === '' ? '' : Number(e.target.value))}
                 min={0}
                 step="0.1"
-                placeholder={`Target: ${habit.target_value}`}
-                className="w-full px-3 py-2 border border-border bg-surface text-text placeholder:text-text-muted focus:outline-none focus:border-primary text-base"
-                autoFocus
+                className="w-full px-3 py-2 border border-border bg-surface text-text focus:outline-none focus:border-primary text-base"
               />
             </div>
           )}
@@ -140,18 +145,15 @@ export function EntryForm({ habit, onClose, onSubmit }: Props) {
                 onChange={(e) => setValueDuration(e.target.value)}
                 placeholder="00:30:00"
                 className="w-full px-3 py-2 border border-border bg-surface text-text placeholder:text-text-muted focus:outline-none focus:border-primary text-base"
-                autoFocus
               />
-              <p className="text-xs text-text-muted mt-1">Target: {habit.target_value} minutes</p>
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-bold text-text-muted mb-1.5">NOTES (OPTIONAL)</label>
+            <label className="block text-xs font-bold text-text-muted mb-1.5">NOTES</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="How did it go?"
               rows={2}
               className="w-full px-3 py-2 border border-border bg-surface text-text placeholder:text-text-muted focus:outline-none focus:border-primary resize-none text-base"
             />
@@ -163,7 +165,7 @@ export function EntryForm({ habit, onClose, onSubmit }: Props) {
               disabled={loading}
               className="w-full border border-primary bg-primary/10 hover:bg-primary/20 disabled:opacity-50 disabled:cursor-not-allowed text-primary font-medium py-2 transition-colors"
             >
-              {loading ? 'SAVING...' : 'LOG ENTRY'}
+              {loading ? 'SAVING...' : 'SAVE_ENTRY'}
             </button>
           </div>
         </form>

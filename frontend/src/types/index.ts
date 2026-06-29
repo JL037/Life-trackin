@@ -88,3 +88,56 @@ export interface BoardStats {
   total_entries: number
   last_entry_date?: string
 }
+
+// --- Social Types ---
+
+export interface FollowsUser {
+  id: string
+  handle: string
+  display_name: string
+  avatar_url: string
+  followed_at: string
+}
+
+export interface FollowsResponse {
+  type: 'following' | 'followers'
+  users: FollowsUser[]
+  count: number
+}
+
+export interface FeedItem {
+  id: string
+  user_id: string
+  handle: string
+  display_name: string
+  board_id: string
+  board_name: string
+  habit_id: string
+  habit_name: string
+  entry_id: string
+  entry_date: string
+  value_bool?: boolean
+  value_numeric?: number
+  notes?: string
+  created_at: string
+}
+
+export interface FeedResponse {
+  items: FeedItem[]
+  count: number
+}
+
+// --- API Error Types ---
+
+export interface ValidationError {
+  error: 'validation failed'
+  fields: Record<string, string[]>
+}
+
+export function isValidationError(err: unknown): err is ValidationError {
+  return typeof err === 'object' && err !== null && 'fields' in err && (err as any).error === 'validation failed'
+}
+
+export function isRateLimitError(err: unknown): boolean {
+  return err instanceof Error && err.message.toLowerCase().includes('rate limit')
+}

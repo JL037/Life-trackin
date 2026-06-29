@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuth } from '../hooks/useAuth'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { User } from '../types'
+import { TerminalSkeleton } from '../components/TerminalSkeleton'
 import { ArrowLeft, Save, User as UserIcon, Globe, Lock, Users } from 'lucide-react'
 
 export function Profile() {
@@ -16,6 +18,8 @@ export function Profile() {
   const [bio, setBio] = useState('')
   const [goals, setGoals] = useState('')
   const [privacyDefault, setPrivacyDefault] = useState<'private' | 'followers' | 'public'>('private')
+
+  useDocumentTitle(user ? `[${user.handle}]` : '[PROFILE]')
 
   useEffect(() => {
     api.auth.me()
@@ -56,8 +60,15 @@ export function Profile() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 font-mono">
-        <div className="text-text-muted text-sm animate-pulse">&gt; loading profile...</div>
+      <div className="font-mono max-w-2xl mx-auto">
+        <div className="mb-6 border-b border-border pb-3">
+          <Link to="/dashboard" className="text-xs text-text-muted hover:text-primary flex items-center gap-1 mb-2">
+            <ArrowLeft className="w-3 h-3" />
+            &lt;&lt; DASHBOARD
+          </Link>
+          <h1 className="text-xl font-bold text-primary">[PROFILE]</h1>
+        </div>
+        <TerminalSkeleton lines={4} />
       </div>
     )
   }
@@ -117,7 +128,7 @@ export function Profile() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Your display name"
-              className="w-full px-3 py-2 border border-border bg-bg text-primary placeholder:text-text-dim focus:outline-none focus:border-primary transition-colors font-mono"
+              className="w-full px-3 py-2 border border-border bg-bg text-primary placeholder:text-text-dim focus:outline-none focus:border-primary transition-colors font-mono text-base"
             />
           </div>
 
@@ -128,7 +139,7 @@ export function Profile() {
               onChange={(e) => setBio(e.target.value)}
               placeholder="Tell others about yourself..."
               rows={3}
-              className="w-full px-3 py-2 border border-border bg-bg text-primary placeholder:text-text-dim focus:outline-none focus:border-primary transition-colors font-mono resize-none"
+              className="w-full px-3 py-2 border border-border bg-bg text-primary placeholder:text-text-dim focus:outline-none focus:border-primary transition-colors font-mono resize-none text-base"
             />
             <p className="text-xs text-text-muted mt-1">// Short description visible on your public profile</p>
           </div>
@@ -140,7 +151,7 @@ export function Profile() {
               onChange={(e) => setGoals(e.target.value)}
               placeholder="What are you working towards?"
               rows={3}
-              className="w-full px-3 py-2 border border-border bg-bg text-primary placeholder:text-text-dim focus:outline-none focus:border-primary transition-colors font-mono resize-none"
+              className="w-full px-3 py-2 border border-border bg-bg text-primary placeholder:text-text-dim focus:outline-none focus:border-primary transition-colors font-mono resize-none text-base"
             />
             <p className="text-xs text-text-muted mt-1">// Your personal goals and aspirations</p>
           </div>
@@ -153,7 +164,7 @@ export function Profile() {
                   key={v}
                   type="button"
                   onClick={() => setPrivacyDefault(v)}
-                  className={`flex items-center justify-center gap-2 py-2 px-3 border text-xs transition-colors ${
+                  className={`flex items-center justify-center gap-2 py-2 px-3 border text-xs transition-colors min-h-[44px] ${
                     privacyDefault === v
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border text-text-muted hover:border-primary/50'
@@ -179,7 +190,7 @@ export function Profile() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-2 px-4 transition-colors text-sm disabled:opacity-50"
+          className="flex items-center gap-2 border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-2 px-4 transition-colors text-sm disabled:opacity-50 min-h-[44px]"
         >
           <Save className="w-4 h-4" />
           {saving ? 'SAVING...' : 'SAVE_PROFILE'}

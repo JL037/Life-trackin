@@ -6,7 +6,6 @@ import type { HeatmapResponse } from '../types'
 
 interface Props {
   boardId?: string
-  habitId?: string
   year?: number
   compact?: boolean
 }
@@ -58,21 +57,33 @@ function buildBoardTooltip(day: { date: string; completion_status?: string; comp
   return tooltip
 }
 
-export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), compact = false }: Props) {
+export function Heatmap({ boardId, year = new Date().getFullYear(), compact = false }: Props) {
   const [data, setData] = useState<HeatmapResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Determine mode: board-level uses completion status, habit-level uses value levels
   const isBoardMode = !!boardId
 
   useEffect(() => {
     if (boardId) {
-      api.boards.heatmap(boardId, year).then(setData).catch(console.error).finally(() => setLoading(false))
+      api.boards.heatmap(boardId, year)
+        .then(setData)
+        .catch((err) => setError(err instanceof Error ? err.message : 'failed to load heatmap'))
+        .finally(() => setLoading(false))
     }
-  }, [boardId, habitId, year])
+  }, [boardId, year])
 
   if (loading) {
     return <div className="animate-pulse bg-text-dim border border-border h-20" />
+  }
+
+  if (error) {
+    return (
+      <div className="border border-red-500/30 bg-red-500/5 p-3 text-xs text-red-500 font-mono">
+        <span className="text-red">&gt; ERROR:</span> {error}
+      </div>
+    )
   }
 
   if (!data || data.days.length === 0) {
@@ -127,7 +138,7 @@ export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), com
                 return (
                   <Tooltip key={di} content={tooltipContent}>
                     <div
-                      className="w-[6px] h-[6px] rounded-[1px] flex-shrink-0"
+                      className="w-[6px] h-[6px] flex-shrink-0"
                       style={{ backgroundColor: bgColor }}
                     />
                   </Tooltip>
@@ -171,7 +182,7 @@ export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), com
                   <Tooltip key={di} content={tooltipContent}>
                     <div
                       className={cn(
-                        "w-3 h-3 rounded-sm cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all",
+                        "w-3 h-3 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all",
                         day.level < 0 && !day.completion_status && "bg-transparent"
                       )}
                       style={{ backgroundColor: bgColor }}
@@ -190,15 +201,15 @@ export function Heatmap({ boardId, habitId, year = new Date().getFullYear(), com
           <span>{data.active_days} active_days</span>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#5a1a1a' }} />
+              <div className="w-3 h-3" style={{ backgroundColor: '#991a1a' }} />
               <span>none</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#b8a030' }} />
+              <div className="w-3 h-3" style={{ backgroundColor: '#ffb000' }} />
               <span>partial</span>
             </div>
             <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#40c463' }} />
+              <div className="w-3 h-3" style={{ backgroundColor: '#7aff7a' }} />
               <span>complete</span>
             </div>
           </div>

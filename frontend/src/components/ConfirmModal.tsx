@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X, AlertTriangle } from 'lucide-react'
 
 interface Props {
@@ -22,6 +22,14 @@ export function ConfirmModal({
 }: Props) {
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   const handleConfirm = async () => {
     setLoading(true)
     try {
@@ -33,7 +41,7 @@ export function ConfirmModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-bg border border-border shadow-xl max-w-md w-full p-5 font-mono">
+      <div className="bg-bg border border-border max-w-md w-full p-5 font-mono">
         <div className="flex items-center justify-between mb-4 border-b border-border pb-3">
           <div className="flex items-center gap-2">
             {danger && <AlertTriangle className="w-4 h-4 text-red-500" />}

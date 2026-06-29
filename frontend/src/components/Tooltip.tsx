@@ -13,11 +13,19 @@ export function Tooltip({ content, children }: Props) {
       <div
         onMouseEnter={() => setShow(true)}
         onMouseLeave={() => setShow(false)}
+        onFocus={() => setShow(true)}
+        onBlur={() => setShow(false)}
+        tabIndex={0}
+        aria-describedby={show ? 'tooltip-content' : undefined}
       >
         {children}
       </div>
       {show && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none">
+        <div
+          id="tooltip-content"
+          role="tooltip"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none"
+        >
           <div className="bg-bg border border-border px-2 py-1 text-xs font-mono text-primary whitespace-nowrap shadow-lg">
             {content}
           </div>

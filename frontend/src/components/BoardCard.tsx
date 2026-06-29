@@ -2,25 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import type { Board, BoardStats } from '../types'
+import { formatRelativeDate } from '../lib/utils'
 import { ConfirmModal } from './ConfirmModal'
 import { ArrowRight, Lock, Globe, Users, Trash2, Hash, Flame, Activity } from 'lucide-react'
 
 interface Props {
   board: Board
   onDeleted?: (id: string) => void
-}
-
-function formatRelativeDate(dateStr?: string): string {
-  if (!dateStr) return 'never'
-  const date = new Date(dateStr + 'T00:00:00')
-  const now = new Date()
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return 'today'
-  if (diffDays === 1) return 'yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
-  return `${Math.floor(diffDays / 365)} years ago`
 }
 
 export function BoardCard({ board, onDeleted }: Props) {
@@ -60,7 +48,7 @@ export function BoardCard({ board, onDeleted }: Props) {
             e.stopPropagation()
             setShowDelete(true)
           }}
-          className="absolute top-2 right-2 p-1.5 border border-border bg-bg hover:border-red-500 hover:text-red-500 text-text-muted transition-colors opacity-0 group-hover:opacity-100 z-10"
+          className="absolute top-2 right-2 p-2 border border-border bg-bg hover:border-red-500 hover:text-red-500 text-text-muted transition-colors z-10 min-h-[44px] min-w-[44px] flex items-center justify-center"
           title="Delete board"
         >
           <Trash2 className="w-3 h-3" />
@@ -113,7 +101,7 @@ export function BoardCard({ board, onDeleted }: Props) {
           <div className="flex items-center justify-between text-xs text-text-muted border-t border-border pt-2">
             <div className="flex items-center gap-1.5">
               <span
-                className={`w-2 h-2 rounded-full ${isActive ? 'bg-primary animate-pulse' : 'bg-text-dim'}`}
+                className={`w-2 h-2 ${isActive ? 'bg-primary animate-pulse' : 'bg-text-dim'}`}
               />
               <span>{isActive ? 'active today' : `last: ${formatRelativeDate(stats?.last_entry_date)}`}</span>
             </div>

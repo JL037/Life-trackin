@@ -1,10 +1,13 @@
-import { useState } from 'react'
-import { useAuth } from '../hooks/useAuth'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { ArrowRight } from 'lucide-react'
+import { useAuth } from '../hooks/useAuth'
+import { useState } from 'react'
 
 export function Login() {
   const [handle, setHandle] = useState('')
   const { login } = useAuth()
+
+  useDocumentTitle('[AUTHENTICATION]')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,7 +28,7 @@ export function Login() {
 {`  _    _ _   _______ _      _____
  | |  | (_) |__   __(_)    |_   _|
  | |__| |_     | |   _ _ __   | |
- |  __  | |    | |  | | '_ \  | |
+ |  __  | |    | |  | | '_ \\  | |
  | |  | | |    | |  | | | | |_| |_
  |_|  |_|_|    |_|  |_|_| |_|_____|
 `}
@@ -51,7 +54,7 @@ export function Login() {
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}
                 placeholder="handle.bsky.social"
-                className="w-full px-3 py-2 border border-border bg-bg text-primary placeholder:text-text-dim focus:outline-none focus:border-primary transition-colors font-mono"
+                className="w-full px-3 py-2 border border-border bg-bg text-primary placeholder:text-text-dim focus:outline-none focus:border-primary transition-colors font-mono text-base"
                 autoFocus
               />
             </div>

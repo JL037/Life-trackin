@@ -5,8 +5,12 @@ import type { Habit, Entry, StreakInfo } from '../types'
 import { Heatmap } from '../components/Heatmap'
 import { StreakBadge } from '../components/StreakBadge'
 import { EntryForm } from '../components/EntryForm'
+import { EditHabitModal } from '../components/EditHabitModal'
+import { EditEntryModal } from '../components/EditEntryModal'
 import { ConfirmModal } from '../components/ConfirmModal'
-import { ArrowLeft, Target, TrendingUp, Trash2 } from 'lucide-react'
+import { StatsSkeleton, HeatmapSkeleton, EntrySkeleton, TerminalSkeleton } from '../components/TerminalSkeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { ArrowLeft, Target, TrendingUp, Trash2, Pencil } from 'lucide-react'
 
 export function HabitView() {
   const { habitId } = useParams<{ habitId: string }>()
@@ -15,7 +19,11 @@ export function HabitView() {
   const [streak, setStreak] = useState<StreakInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [showEntryForm, setShowEntryForm] = useState(false)
+  const [showEditHabit, setShowEditHabit] = useState(false)
   const [entryToDelete, setEntryToDelete] = useState<Entry | null>(null)
+  const [entryToEdit, setEntryToEdit] = useState<Entry | null>(null)
+
+  useDocumentTitle(habit ? `[${habit.name}]` : '[HABIT]')
 
   useEffect(() => {
     if (!habitId) return
@@ -40,8 +48,27 @@ export function HabitView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 font-mono">
-        <div className="text-text-muted text-sm animate-pulse">&gt; loading habit data...</div>
+      <div className="font-mono">
+        <div className="mb-6 border-b border-border pb-3">
+          <div className="text-xs text-text-muted flex items-center gap-1 mb-2">
+            <ArrowLeft className="w-3 h-3" />
+            &lt;&lt; BOARD
+          </div>
+          <TerminalSkeleton lines={2} />
+        </div>
+        <StatsSkeleton />
+        <div className="mt-6 mb-6">
+          <HeatmapSkeleton />
+        </div>
+        <div className="mb-4 border-b border-border pb-2">
+          <h2 className="text-lg font-bold text-primary">[RECENT_ENTRIES]</h2>
+        </div>
+        <div className="space-y-2">
+          <EntrySkeleton />
+          <EntrySkeleton />
+          <EntrySkeleton />
+          <EntrySkeleton />
+        </div>
       </div>
     )
   }
@@ -79,7 +106,16 @@ export function HabitView() {
               <p className="text-text-muted text-xs mt-1">// {habit.description}</p>
             )}
           </div>
-          {streak && <StreakBadge streak={streak} />}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowEditHabit(true)}
+              className="p-2 border border-border hover:border-primary transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              title="Edit habit"
+            >
+              <Pencil className="w-4 h-4 text-primary" />
+            </button>
+            {streak && <StreakBadge streak={streak} />}
+          </div>
         </div>
       </div>
 
@@ -124,14 +160,14 @@ export function HabitView() {
         <div className="text-xs text-text-muted mb-3 border-b border-border pb-2">
           &gt; ACTIVITY_HEATMAP
         </div>
-        <Heatmap habitId={habit.id} year={new Date().getFullYear()} />
+        <Heatmap boardId={habit.board_id} year={new Date().getFullYear()} />
       </div>
 
       <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
         <h2 className="text-lg font-bold text-primary">[RECENT_ENTRIES]</h2>
         <button
           onClick={() => setShowEntryForm(true)}
-          className="border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-1.5 px-3 text-sm transition-colors"
+          className="border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-1.5 px-3 text-sm transition-colors min-h-[44px]"
         >
           LOG_ENTRY
         </button>
@@ -146,7 +182,7 @@ export function HabitView() {
           {entries.slice(0, 20).map(entry => (
             <div
               key={entry.id}
-              className="flex items-center justify-between border border-border bg-surface px-3 py-2 group"
+              className="flex items-center justify-between border border-border bg-surface px-3 py-2"
             >
               <div className="flex items-center gap-3">
                 <div
@@ -162,8 +198,8 @@ export function HabitView() {
                   {entry.notes && <p className="text-xs text-text-muted">// {entry.notes}</p>}
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
+              <div className="flex items-center gap-1">
+                <div className="text-right mr-2">
                   {entry.value_numeric !== undefined && (
                     <p className="text-sm font-medium text-primary">{entry.value_numeric}{habit.unit}</p>
                   )}
@@ -172,8 +208,15 @@ export function HabitView() {
                   )}
                 </div>
                 <button
+                  onClick={() => setEntryToEdit(entry)}
+                  className="p-2 border border-border hover:border-primary hover:text-primary text-text-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  title="Edit entry"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button
                   onClick={() => setEntryToDelete(entry)}
-                  className="p-1 border border-border hover:border-red-500 hover:text-red-500 text-text-muted transition-colors opacity-0 group-hover:opacity-100"
+                  className="p-2 border border-border hover:border-red-500 hover:text-red-500 text-text-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                   title="Delete entry"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -191,6 +234,30 @@ export function HabitView() {
           confirmLabel="DELETE"
           onConfirm={handleDeleteEntry}
           onClose={() => setEntryToDelete(null)}
+        />
+      )}
+
+      {entryToEdit && habit && (
+        <EditEntryModal
+          entry={entryToEdit}
+          habit={habit}
+          onClose={() => setEntryToEdit(null)}
+          onUpdated={(updatedEntry) => {
+            setEntries(prev => prev.map(e => e.id === updatedEntry.id ? updatedEntry : e))
+            setEntryToEdit(null)
+            loadData()
+          }}
+        />
+      )}
+
+      {showEditHabit && habit && (
+        <EditHabitModal
+          habit={habit}
+          onClose={() => setShowEditHabit(false)}
+          onUpdated={(updatedHabit) => {
+            setHabit(updatedHabit)
+            setShowEditHabit(false)
+          }}
         />
       )}
 

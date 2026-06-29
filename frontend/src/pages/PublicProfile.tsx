@@ -1,21 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { api } from '../lib/api'
-import type { User, Board } from '../types'
-import { ArrowLeft, User as UserIcon, Globe, Lock, Hash, Flame, Activity } from 'lucide-react'
-
-function formatRelativeDate(dateStr?: string): string {
-  if (!dateStr) return 'never'
-  const date = new Date(dateStr + 'T00:00:00')
-  const now = new Date()
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return 'today'
-  if (diffDays === 1) return 'yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
-  return `${Math.floor(diffDays / 365)} years ago`
-}
+import { api, ApiError } from '../lib/api'
+import { useAuth } from '../hooks/useAuth'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useToast } from '../context/ToastContext'
+import type { User, Board, FollowsResponse } from '../types'
+import { formatRelativeDate } from '../lib/utils'
+import { TerminalSkeleton } from '../components/TerminalSkeleton'
+import { ArrowLeft, User as UserIcon, Globe, Hash, Flame, Activity, UserPlus, UserMinus, Users } from 'lucide-react'
 
 interface PublicBoard extends Board {
   stats?: {
@@ -28,10 +20,18 @@ interface PublicBoard extends Board {
 
 export function PublicProfile() {
   const { handle } = useParams<{ handle: string }>()
+  const { user: authUser } = useAuth()
+  const { addToast } = useToast()
   const [user, setUser] = useState<User | null>(null)
   const [boards, setBoards] = useState<PublicBoard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
+
+  useDocumentTitle(handle ? `[@${handle}]` : '[USER]')
+
+  const isOwnProfile = authUser?.handle === handle
 
   useEffect(() => {
     if (!handle) return
@@ -55,17 +55,56 @@ export function PublicProfile() {
             })
             .catch(console.error)
         })
+
+        // Check if following (only if authenticated and not own profile)
+        if (authUser && !isOwnProfile) {
+          api.follows.list('following')
+            .then((data: FollowsResponse) => {
+              setIsFollowing(data.users.some(u => u.handle === handle))
+            })
+            .catch(() => setIsFollowing(false))
+        }
       })
       .catch((err) => {
         setError(err.message || 'user not found')
       })
       .finally(() => setLoading(false))
-  }, [handle])
+  }, [handle, authUser, isOwnProfile])
+
+  const handleFollowToggle = async () => {
+    if (!handle || !authUser) return
+    setFollowLoading(true)
+    try {
+      if (isFollowing) {
+        await api.follows.unfollow(handle)
+        setIsFollowing(false)
+        addToast(`Unfollowed @${handle}`, 'info')
+      } else {
+        await api.follows.follow(handle)
+        setIsFollowing(true)
+        addToast(`Now following @${handle}`, 'success')
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429) {
+        addToast('Rate limit exceeded. Please slow down.', 'warning')
+      } else {
+        addToast('Failed to update follow status', 'error')
+      }
+    } finally {
+      setFollowLoading(false)
+    }
+  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 font-mono">
-        <div className="text-text-muted text-sm animate-pulse">&gt; loading profile...</div>
+      <div className="font-mono max-w-3xl mx-auto">
+        <div className="mb-6 border-b border-border pb-3">
+          <Link to="/dashboard" className="text-xs text-text-muted hover:text-primary flex items-center gap-1 mb-2">
+            <ArrowLeft className="w-3 h-3" />
+            &lt;&lt; DASHBOARD
+          </Link>
+        </div>
+        <TerminalSkeleton lines={3} />
       </div>
     )
   }
@@ -124,6 +163,33 @@ export function PublicProfile() {
             </div>
           </div>
         </div>
+
+        {/* Follow Actions */}
+        {authUser && !isOwnProfile && (
+          <div className="mt-4 pt-4 border-t border-border flex items-center gap-2">
+            <button
+              onClick={handleFollowToggle}
+              disabled={followLoading}
+              className={`flex items-center gap-2 border py-2 px-4 text-sm transition-colors min-h-[44px] disabled:opacity-50 ${
+                isFollowing
+                  ? 'border-red-500/50 bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                  : 'border-primary bg-primary/10 text-primary hover:bg-primary/20'
+              }`}
+            >
+              {isFollowing ? (
+                <>
+                  <UserMinus className="w-4 h-4" />
+                  UNFOLLOW
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4" />
+                  FOLLOW
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Public Boards */}
@@ -141,9 +207,8 @@ export function PublicProfile() {
           {boards.map(board => {
             const isActive = board.stats?.last_entry_date && formatRelativeDate(board.stats.last_entry_date) === 'today'
             return (
-              <Link
+              <div
                 key={board.id}
-                to={`/board/${board.id}`}
                 className="block border border-border bg-surface p-4 hover:border-primary/50 transition-colors"
               >
                 <div className="flex items-start justify-between mb-3">
@@ -186,10 +251,10 @@ export function PublicProfile() {
                 </div>
 
                 <div className="flex items-center gap-1.5 mt-3 text-xs text-text-muted border-t border-border pt-2">
-                  <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-primary animate-pulse' : 'bg-text-dim'}`} />
+                  <span className={`w-2 h-2 ${isActive ? 'bg-primary animate-pulse' : 'bg-text-dim'}`} />
                   <span>{isActive ? 'active today' : `last: ${formatRelativeDate(board.stats?.last_entry_date)}`}</span>
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>

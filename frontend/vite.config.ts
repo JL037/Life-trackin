@@ -14,8 +14,8 @@ export default defineConfig({
         name: 'LifeTrack',
         short_name: 'LifeTrack',
         description: 'GitHub-style life tracking on AT Protocol',
-        theme_color: '#216e39',
-        background_color: '#ffffff',
+        theme_color: '#0a0a0a',
+        background_color: '#0a0a0a',
         display: 'standalone',
         icons: [
           {

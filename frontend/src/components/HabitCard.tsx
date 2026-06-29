@@ -59,16 +59,19 @@ export function HabitCard({ habit, onDeleted }: Props) {
           </div>
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setShowDelete(true)}
-            className="p-1.5 border border-border bg-bg hover:border-red-500 hover:text-red-500 text-text-muted transition-colors opacity-0 group-hover:opacity-100"
+            className="p-2 border border-border bg-bg hover:border-red-500 hover:text-red-500 text-text-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             title="Delete habit"
           >
             <Trash2 className="w-3 h-3" />
           </button>
-          <Link to={`/habit/${habit.id}`}>
-            <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-primary group-hover:translate-x-1 transition-all" />
+          <Link
+            to={`/habit/${habit.id}`}
+            className="p-2 border border-transparent hover:border-primary text-text-muted hover:text-primary transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          >
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-all" />
           </Link>
         </div>
       </div>

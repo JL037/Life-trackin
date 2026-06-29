@@ -32,11 +32,24 @@ export function getHeatmapColor(level: number): string {
 
 export function getBoardCompletionColor(status: 'none' | 'partial' | 'complete'): string {
   const colors = {
-    none: '#5a1a1a',      // muted dark red
-    partial: '#b8a030',  // muted gold
-    complete: '#40c463', // bright green
+    none: '#991a1a',      // red-dim
+    partial: '#ffb000',  // amber
+    complete: '#7aff7a', // heatmap-4
   }
   return colors[status] || colors.none
+}
+
+export function formatRelativeDate(dateStr?: string): string {
+  if (!dateStr) return 'never'
+  const date = new Date(dateStr + 'T00:00:00')
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'today'
+  if (diffDays === 1) return 'yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
+  return `${Math.floor(diffDays / 365)} years ago`
 }
 
 export function formatDuration(seconds: number): string {

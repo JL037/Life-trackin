@@ -5,6 +5,9 @@ import type { Board, Habit } from '../types'
 import { Heatmap } from '../components/Heatmap'
 import { HabitCard } from '../components/HabitCard'
 import { CreateHabitModal } from '../components/CreateHabitModal'
+import { EditBoardModal } from '../components/EditBoardModal'
+import { HeatmapSkeleton, HabitSkeleton, TerminalSkeleton } from '../components/TerminalSkeleton'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { ArrowLeft, Plus, Settings } from 'lucide-react'
 
 export function BoardView() {
@@ -13,6 +16,9 @@ export function BoardView() {
   const [habits, setHabits] = useState<Habit[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateHabit, setShowCreateHabit] = useState(false)
+  const [showEditBoard, setShowEditBoard] = useState(false)
+
+  useDocumentTitle(board ? `[${board.name}]` : '[BOARD]')
 
   useEffect(() => {
     if (!boardId) return
@@ -31,8 +37,23 @@ export function BoardView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 font-mono">
-        <div className="text-text-muted text-sm animate-pulse">&gt; loading board data...</div>
+      <div className="font-mono">
+        <div className="mb-6 border-b border-border pb-3">
+          <div className="text-xs text-text-muted flex items-center gap-1 mb-2">
+            <ArrowLeft className="w-3 h-3" />
+            &lt;&lt; DASHBOARD
+          </div>
+          <TerminalSkeleton lines={2} />
+        </div>
+        <HeatmapSkeleton />
+        <div className="mt-6 mb-4">
+          <h2 className="text-lg font-bold text-primary mb-4">[HABITS]</h2>
+          <div className="space-y-2">
+            <HabitSkeleton />
+            <HabitSkeleton />
+            <HabitSkeleton />
+          </div>
+        </div>
       </div>
     )
   }
@@ -63,12 +84,16 @@ export function BoardView() {
             )}
           </div>
           <div className="flex items-center gap-2">
-            <button className="p-2 border border-border hover:border-primary transition-colors">
+            <button
+              onClick={() => setShowEditBoard(true)}
+              className="p-2 border border-border hover:border-primary transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+              title="Edit board"
+            >
               <Settings className="w-4 h-4 text-primary" />
             </button>
             <button
               onClick={() => setShowCreateHabit(true)}
-              className="flex items-center gap-2 border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-1.5 px-3 transition-colors text-sm"
+              className="flex items-center gap-2 border border-primary bg-primary/10 hover:bg-primary/20 text-primary py-1.5 px-3 transition-colors text-sm min-h-[44px]"
             >
               <Plus className="w-4 h-4" />
               NEW_HABIT
@@ -111,6 +136,17 @@ export function BoardView() {
           onCreated={(habit: Habit) => {
             setHabits(prev => [...prev, habit])
             setShowCreateHabit(false)
+          }}
+        />
+      )}
+
+      {showEditBoard && board && (
+        <EditBoardModal
+          board={board}
+          onClose={() => setShowEditBoard(false)}
+          onUpdated={(updatedBoard) => {
+            setBoard(updatedBoard)
+            setShowEditBoard(false)
           }}
         />
       )}

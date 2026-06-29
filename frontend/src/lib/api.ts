@@ -1,4 +1,18 @@
+import type { ValidationError } from '../types'
+
 const API_BASE = '/api'
+
+export class ApiError extends Error {
+  status: number
+  validationFields?: Record<string, string[]>
+
+  constructor(message: string, status: number, validationFields?: Record<string, string[]>) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.validationFields = validationFields
+  }
+}
 
 async function fetcher(path: string, options?: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -11,12 +25,19 @@ async function fetcher(path: string, options?: RequestInit) {
   })
 
   if (res.status === 401) {
-    throw new Error('unauthorized')
+    throw new ApiError('unauthorized', 401)
+  }
+
+  if (res.status === 429) {
+    throw new ApiError('rate limit exceeded', 429)
   }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'unknown error' }))
-    throw new Error(err.error || `HTTP ${res.status}`)
+    if (err.error === 'validation failed' && err.fields) {
+      throw new ApiError('validation failed', res.status, err.fields as Record<string, string[]>)
+    }
+    throw new ApiError(err.error || `HTTP ${res.status}`, res.status)
   }
 
   return res.json()
@@ -67,6 +88,8 @@ export const api = {
     },
     create: (habitId: string, data: unknown) =>
       fetcher(`/habits/${habitId}/entries`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (entryId: string, data: unknown) =>
+      fetcher(`/entries/${entryId}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (entryId: string) => fetcher(`/entries/${entryId}`, { method: 'DELETE' }),
   },
 
@@ -74,5 +97,15 @@ export const api = {
     user: (handle: string) => fetcher(`/public/users/${handle}`),
     boards: (handle: string) => fetcher(`/public/users/${handle}/boards`),
     boardStats: (boardId: string) => fetcher(`/public/boards/${boardId}/stats`),
+  },
+
+  follows: {
+    follow: (handle: string) => fetcher(`/follows/${handle}`, { method: 'POST' }),
+    unfollow: (handle: string) => fetcher(`/follows/${handle}`, { method: 'DELETE' }),
+    list: (type: 'following' | 'followers') => fetcher(`/follows?type=${type}`),
+  },
+
+  feed: {
+    list: (limit = 50) => fetcher(`/feed?limit=${limit}`),
   },
 }
