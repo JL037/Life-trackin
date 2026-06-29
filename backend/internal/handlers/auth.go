@@ -17,19 +17,27 @@ import (
 	"github.com/jaredlemler/life-trackin/internal/middleware"
 )
 
-type AuthHandler struct {
-	app         *oauth.ClientApp
-	pool        *pgxpool.Pool
-	jwtSecret   string
-	frontendURL string
+type CookieConfig struct {
+	Domain   string
+	Secure   bool
+	SameSite http.SameSite
 }
 
-func NewAuthHandler(app *oauth.ClientApp, pool *pgxpool.Pool, jwtSecret, frontendURL string) *AuthHandler {
+type AuthHandler struct {
+	app          *oauth.ClientApp
+	pool         *pgxpool.Pool
+	jwtSecret    string
+	frontendURL  string
+	cookieConfig CookieConfig
+}
+
+func NewAuthHandler(app *oauth.ClientApp, pool *pgxpool.Pool, jwtSecret, frontendURL string, cookieCfg CookieConfig) *AuthHandler {
 	return &AuthHandler{
-		app:         app,
-		pool:        pool,
-		jwtSecret:   jwtSecret,
-		frontendURL: frontendURL,
+		app:          app,
+		pool:         pool,
+		jwtSecret:    jwtSecret,
+		frontendURL:  frontendURL,
+		cookieConfig: cookieCfg,
 	}
 }
 
@@ -116,10 +124,10 @@ func (h *AuthHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		Name:     "session_token",
 		Value:    tokenStr,
 		Path:     "/",
-		Domain:   "127.0.0.1",
+		Domain:   h.cookieConfig.Domain,
 		HttpOnly: true,
-		Secure:   false, // Set to true in production
-		SameSite: http.SameSiteLaxMode,
+		Secure:   h.cookieConfig.Secure,
+		SameSite: h.cookieConfig.SameSite,
 		MaxAge:   7 * 24 * 60 * 60, // 7 days
 	})
 
@@ -252,7 +260,10 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		Name:     "session_token",
 		Value:    "",
 		Path:     "/",
+		Domain:   h.cookieConfig.Domain,
 		HttpOnly: true,
+		Secure:   h.cookieConfig.Secure,
+		SameSite: h.cookieConfig.SameSite,
 		MaxAge:   -1,
 	})
 	w.WriteHeader(http.StatusOK)

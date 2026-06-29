@@ -75,8 +75,8 @@ func (h *EntryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update streak asynchronously
-	go h.updateStreak(habitID)
+	// Update streak asynchronously with panic recovery and bounded context
+	go h.safeUpdateStreak(ctx, habitID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -230,15 +230,29 @@ func (h *EntryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update streak
-	go h.updateStreak(habitID)
+	// Update streak asynchronously with panic recovery and bounded context
+	go h.safeUpdateStreak(ctx, habitID)
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, `{"status":"deleted"}`)
 }
 
-func (h *EntryHandler) updateStreak(habitID string) {
-	ctx := context.Background()
+// safeUpdateStreak launches updateStreak in a goroutine with panic recovery
+// and a bounded context derived from the request context.
+func (h *EntryHandler) safeUpdateStreak(parentCtx context.Context, habitID string) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("panic in updateStreak for habit %s: %v", habitID, r)
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(parentCtx, 10*time.Second)
+	defer cancel()
+
+	h.updateStreak(ctx, habitID)
+}
+
+func (h *EntryHandler) updateStreak(ctx context.Context, habitID string) {
 
 	// Calculate current streak by counting consecutive days backwards from today
 	rows, err := h.pool.Query(ctx,

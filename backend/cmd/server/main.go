@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -24,6 +24,12 @@ import (
 func main() {
 	_ = godotenv.Load()
 
+	// Configure structured JSON logging
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -31,7 +37,8 @@ func main() {
 
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		log.Fatal("DATABASE_URL is required")
+		slog.Error("DATABASE_URL is required")
+		os.Exit(1)
 	}
 
 	appURL := os.Getenv("APP_URL")
@@ -49,30 +56,46 @@ func main() {
 		jwtSecret = "dev-secret-change-in-production"
 	}
 
+	// Cookie configuration (environment-driven for production safety)
+	cookieDomain := os.Getenv("COOKIE_DOMAIN")
+	cookieSecure := os.Getenv("COOKIE_SECURE") == "true"
+	cookieSameSite := parseSameSite(os.Getenv("COOKIE_SAMESITE"))
+
 	ctx := context.Background()
 
 	// Initialize database
 	pool, err := db.Connect(ctx, databaseURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		slog.Error("failed to connect to database", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
 	defer pool.Close()
 
 	// Run migrations
 	if err := db.RunMigrations(databaseURL); err != nil {
-		log.Fatalf("Failed to run migrations: %v", err)
+		slog.Error("failed to run migrations", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
-	log.Println("Migrations completed successfully")
+	slog.Info("migrations completed successfully")
 
 	// Initialize OAuth (Indigo SDK ClientApp with PostgreSQL store)
 	oauthApp := auth.NewOAuthApp(appURL, pool)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(oauthApp, pool, jwtSecret, frontendURL)
+	authHandler := handlers.NewAuthHandler(oauthApp, pool, jwtSecret, frontendURL, handlers.CookieConfig{
+		Domain:   cookieDomain,
+		Secure:   cookieSecure,
+		SameSite: cookieSameSite,
+	})
 	boardHandler := handlers.NewBoardHandler(pool)
 	habitHandler := handlers.NewHabitHandler(pool)
 	entryHandler := handlers.NewEntryHandler(pool)
 	publicHandler := handlers.NewPublicHandler(pool)
+	socialHandler := handlers.NewSocialHandler(pool)
+
+	// Rate limiters
+	ipRateLimiter := middleware.NewRateLimiter(30, time.Minute)      // 30 req/min per IP
+	userRateLimiter := middleware.NewRateLimiter(60, time.Minute)      // 60 req/min per user
 
 	// Setup router
 	r := chi.NewRouter()
@@ -88,17 +111,28 @@ func main() {
 		MaxAge:           300,
 	}))
 
-	// Health check
+	// Health check (no rate limit)
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		healthCtx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+
+		if err := pool.Ping(healthCtx); err != nil {
+			slog.Error("health check failed", slog.String("error", err.Error()))
+			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprint(w, `{"status":"unhealthy","check":"database"}`)
+			return
+		}
+
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"status":"ok"}`)
+		fmt.Fprint(w, `{"status":"ok","check":"database"}`)
 	})
 
-	// OAuth metadata endpoints
+	// OAuth metadata endpoints (no rate limit)
 	r.Get("/client-metadata.json", authHandler.ClientMetadata)
 
-	// Auth routes
+	// Auth routes (per-IP rate limit)
 	r.Route("/api/auth", func(r chi.Router) {
+		r.Use(middleware.RateLimitByIP(ipRateLimiter))
 		r.Get("/login", authHandler.Login)
 		r.Get("/callback", authHandler.Callback)
 		r.Get("/me", middleware.RequireAuth(jwtSecret)(authHandler.Me))
@@ -106,35 +140,40 @@ func main() {
 		r.Post("/logout", authHandler.Logout)
 	})
 
-	// Protected API routes
+	// Protected API routes (auth + per-user rate limit on writes)
 	r.Route("/api", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(jwtSecret))
 
-		// Boards
+		// Read routes (no user rate limit)
 		r.Get("/boards", boardHandler.List)
-		r.Post("/boards", boardHandler.Create)
 		r.Get("/boards/{boardID}", boardHandler.Get)
-		r.Put("/boards/{boardID}", boardHandler.Update)
-		r.Delete("/boards/{boardID}", boardHandler.Delete)
 		r.Get("/boards/{boardID}/stats", boardHandler.Stats)
 		r.Get("/boards/{boardID}/heatmap", boardHandler.Heatmap)
-
-		// Habits
 		r.Get("/boards/{boardID}/habits", habitHandler.List)
-		r.Post("/boards/{boardID}/habits", habitHandler.Create)
 		r.Get("/habits/{habitID}", habitHandler.Get)
-		r.Put("/habits/{habitID}", habitHandler.Update)
-		r.Delete("/habits/{habitID}", habitHandler.Delete)
-
-		// Entries
-		r.Post("/habits/{habitID}/entries", entryHandler.Create)
 		r.Get("/habits/{habitID}/entries", entryHandler.List)
 		r.Get("/habits/{habitID}/streak", entryHandler.Streak)
-		r.Delete("/entries/{entryID}", entryHandler.Delete)
+
+		// Write routes (per-user rate limit)
+		r.With(middleware.RateLimitByUser(userRateLimiter)).Post("/boards", boardHandler.Create)
+		r.With(middleware.RateLimitByUser(userRateLimiter)).Put("/boards/{boardID}", boardHandler.Update)
+		r.With(middleware.RateLimitByUser(userRateLimiter)).Delete("/boards/{boardID}", boardHandler.Delete)
+		r.With(middleware.RateLimitByUser(userRateLimiter)).Post("/boards/{boardID}/habits", habitHandler.Create)
+		r.With(middleware.RateLimitByUser(userRateLimiter)).Put("/habits/{habitID}", habitHandler.Update)
+		r.With(middleware.RateLimitByUser(userRateLimiter)).Delete("/habits/{habitID}", habitHandler.Delete)
+		r.With(middleware.RateLimitByUser(userRateLimiter)).Post("/habits/{habitID}/entries", entryHandler.Create)
+		r.With(middleware.RateLimitByUser(userRateLimiter)).Delete("/entries/{entryID}", entryHandler.Delete)
+
+		// Social routes
+		r.Post("/follows/{handle}", socialHandler.Follow)
+		r.Delete("/follows/{handle}", socialHandler.Unfollow)
+		r.Get("/follows", socialHandler.ListFollows)
+		r.Get("/feed", socialHandler.Feed)
 	})
 
-	// Public API routes (no auth required)
+	// Public API routes (per-IP rate limit)
 	r.Route("/api/public", func(r chi.Router) {
+		r.Use(middleware.RateLimitByIP(ipRateLimiter))
 		r.Get("/users/{handle}", publicHandler.GetUser)
 		r.Get("/users/{handle}/boards", publicHandler.ListBoards)
 		r.Get("/boards/{boardID}/stats", publicHandler.BoardStats)
@@ -150,9 +189,10 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Server starting on port %s", port)
+		slog.Info("server starting", slog.String("port", port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed: %v", err)
+			slog.Error("server failed", slog.String("error", err.Error()))
+			os.Exit(1)
 		}
 	}()
 
@@ -161,12 +201,26 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	slog.Info("shutting down server")
 	shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("Server forced shutdown: %v", err)
+		slog.Error("server forced shutdown", slog.String("error", err.Error()))
+		os.Exit(1)
 	}
-	log.Println("Server exited")
+	slog.Info("server exited")
+}
+
+func parseSameSite(v string) http.SameSite {
+	switch v {
+	case "Strict":
+		return http.SameSiteStrictMode
+	case "None":
+		return http.SameSiteNoneMode
+	case "Lax", "":
+		return http.SameSiteLaxMode
+	default:
+		return http.SameSiteLaxMode
+	}
 }
