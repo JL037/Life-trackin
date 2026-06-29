@@ -102,3 +102,13 @@ func GetUserDID(ctx context.Context) string {
 	did, _ := ctx.Value(UserDIDKey).(string)
 	return did
 }
+
+// SetUserID injects a user ID into a context (useful for testing).
+func SetUserID(ctx context.Context, userID string) context.Context {
+	return context.WithValue(ctx, UserIDKey, userID)
+}
+
+// SetUserDID injects a user DID into a context (useful for testing).
+func SetUserDID(ctx context.Context, userDID string) context.Context {
+	return context.WithValue(ctx, UserDIDKey, userDID)
+}
